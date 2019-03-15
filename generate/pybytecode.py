@@ -56,32 +56,49 @@ for cls in [Python13Parser, Python13ParserSingle, Python14Parser, Python14Parser
                         nodes[n] = doc
 
 print(r"""import sys
-IS_PYPY = "__pypy__" in sys.builtin_module_names
+import inspect
 
-import spark_parser.ast
+import spark_parser
 import uncompyle6.parser
+import uncompyle6.scanner
 
-class Walker(spark_parser.GenericASTTraversal):
-    def __init__(self, version, out, scanner, showast=False, debug_parser=spark_parser.DEFAULT_DEBUG, compile_mode="exec", is_pypy=IS_PYPY, linestarts={}, tolerate_errors=False):
-        super(Walker, self).__init__(ast=None)
-        self.scanner = scanner
-        self.version = version
-        self.p = uncompyle6.parser.get_python_parser(version, debug_parser=dict(debug_parser), compile_mode=compile_mode, is_pypy=is_pypy)
+import gawk.syntaxtree
 
-    def build_ast(self, tokens, customize, is_lambda=False, noneInNames=False, isTopLevel=False):
-        return uncompyle6.parser.parse(self.p, tokens, customize)
+class BytecodeWalker(object):
+    def __init__(self, function, pyversion=None, debug_parser=spark_parser.DEFAULT_DEBUG):
+        self.code = function.__code__
+        self.sourcepath = inspect.getsourcefile(function)
+        try:
+            self.linestart = inspect.getsourcelines(function)[1]
+        except:
+            self.linestart = 0
 
-    def gen_source(self, ast, name, customize, is_lambda=False, returnNone=False):
-        return self.preorder(ast)
+        if pyversion is None:
+            pyversion = float(sys.version[0:3])
+        self.pyversion = pyversion
 
-    def _name_lineno(self, name, node):
+        self.debug_parser = debug_parser
+        self.parser = uncompyle6.parser.get_python_parser(self.pyversion, debug_parser=dict(self.debug_parser), compile_mode="exec", is_pypy=("__pypy__" in sys.builtin_module_names))
+
+    def ast(self):
+        scanner = uncompyle6.scanner.get_scanner(self.pyversion, is_pypy=("__pypy__" in sys.builtin_module_names))
+        tokens, customize = scanner.ingest(self.code, code_objects={}, show_asm=self.debug_parser.get("asm", False))
+        return self.n(uncompyle6.parser.parse(self.parser, tokens, customize))
+
+    def line(self, node):
+        return self.linestart + node.linestart
+
+    def nameline(self, name, node):
         lineno = getattr(node, "linestart", None)
         if lineno is None:
-            return name
+            return "{0} in {1}".format(name, self.sourcepath)
         else:
-            return "{0} on line {1}".format(name, node.linestart)
+            return "{0} on line {1} of {2}".format(name, self.linestart + node.linestart, self.sourcepath)
+
+    def n(self, node):
+        return getattr(self, "n_" + node.kind, self.default)(node)
 
     def default(self, node):
-        raise NotImplementedError("unrecognized node type: " + self._name_lineno(type(node).__name__, node))
+        raise NotImplementedError("unrecognized node type: " + self.nameline(type(node).__name__, node))
 
-""" + "\n\n".join("    def n_{0}(self, node):{1}\n        raise NotImplementedError(self._name_lineno({2}, node))\n        # self.prune()".format(n, "" if nodes[n] is None else "\n        ''{0}''".format(repr(nodes[n]).replace(r"\n", "\n")), repr(n)) for n in nodes))
+""" + "\n\n".join("    def n_{0}(self, node):{1}\n        raise NotImplementedError(self.nameline({2}, node))".format(n, "" if nodes[n] is None else "\n        ''{0}''".format(repr(nodes[n]).replace(r"\n", "\n")), repr(n)) for n in nodes))
