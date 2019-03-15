@@ -5,7 +5,7 @@ import spark_parser
 import uncompyle6.parser
 import uncompyle6.scanner
 
-import gawk.syntaxtree
+import rejig.syntaxtree
 
 class BytecodeWalker(object):
     def __init__(self, function, pyversion=None, debug_parser=spark_parser.DEFAULT_DEBUG):
@@ -462,16 +462,16 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('_mklambda', node))
 
     def n_LOAD_CONST(self, node):
-        return gawk.syntaxtree.Const(node.pattr)
+        return rejig.syntaxtree.Const(node.pattr)
 
     def n_LOAD_GLOBAL(self, node):
-        return gawk.syntaxtree.Name(node.pattr)
+        return rejig.syntaxtree.Name(node.pattr)
 
     def n_LOAD_DEREF(self, node):
         raise NotImplementedError(self.nameline('LOAD_DEREF', node))
 
     def n_binary_expr(self, node):
-        return gawk.syntaxtree.Call(self.n(node[2]), self.n(node[0]), self.n(node[1]))
+        return rejig.syntaxtree.Call(self.n(node[2]), self.n(node[0]), self.n(node[1]))
 
     def n_list(self, node):
         raise NotImplementedError(self.nameline('list', node))
@@ -1051,7 +1051,7 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('THEN', node))
 
     def n_stmts(self, node):
-        return gawk.syntaxtree.Suite(self.n(x) for x in node)
+        return rejig.syntaxtree.Suite(self.n(x) for x in node)
 
     def n__while1test(self, node):
         raise NotImplementedError(self.nameline('_while1test', node))

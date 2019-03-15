@@ -1,2 +1,3 @@
-# gawk
-Embedded DSL in Python for expressing awkward-array transformations.
+# rejig
+
+Embedded DSL in Python for transforming awkward-arrays.

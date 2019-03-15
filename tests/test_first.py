@@ -1,6 +1,6 @@
-import gawk.pybytecode
+import rejig.pybytecode
 
 def testme():
     return x + 5 + y
 
-print(gawk.pybytecode.BytecodeWalker(testme).ast().dump())
+print(rejig.pybytecode.BytecodeWalker(testme).ast().dump())
