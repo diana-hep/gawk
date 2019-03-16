@@ -649,6 +649,10 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('LAMBDA_MARKER', node))
 
     def n_compare_chained(self, node):
+        args = [self.n(x) for x in node]
+        print(args)
+
+
         raise NotImplementedError(self.nameline('compare_chained', node))
 
     def n_compare_single(self, node):
@@ -658,10 +662,18 @@ class BytecodeWalker(object):
         return node.pattr
 
     def n_compare_chained1(self, node):
+        print("n_compare_chained1")
+        print(node)
+        print("A", self.n(node[0]))
+        print("B", self.n(node[3]))
+        print("C", self.n(node[5]))
+
+        
+
         raise NotImplementedError(self.nameline('compare_chained1', node))
 
     def n_compare_chained2(self, node):
-        raise NotImplementedError(self.nameline('compare_chained2', node))
+        return self.n(node[1]), self.n(node[0])
 
     def n_kvlist(self, node):
         raise NotImplementedError(self.nameline('kvlist', node))
