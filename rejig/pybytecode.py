@@ -333,7 +333,7 @@ class BytecodeWalker(object):
         # adds another rule.
         call_stmt ::= expr POP_TOP
         '''
-        raise NotImplementedError(self.nameline('call_stmt', node))
+        return self.n(node[0])
 
     def n_POP_TOP(self, node):
         raise NotImplementedError(self.nameline('POP_TOP', node))
@@ -468,7 +468,20 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('_mklambda', node))
 
     def n_LOAD_CONST(self, node):
-        return rejig.syntaxtree.Const(node.pattr)
+        if isinstance(node.pattr, tuple):
+            return rejig.syntaxtree.Call("tuple", *[rejig.syntaxtree.Const(x) for x in node.pattr])
+        elif isinstance(node.pattr, list):
+            return rejig.syntaxtree.Call("list", *[rejig.syntaxtree.Const(x) for x in node.pattr])
+        elif isinstance(node.pattr, set):
+            return rejig.syntaxtree.Call("set", *[rejig.syntaxtree.Const(x) for x in node.pattr])
+        elif isinstance(node.pattr, dict):
+            pairs = []
+            for n, x in node.pattr.items():
+                pairs.append(rejig.syntaxtree.Const(n))
+                pairs.append(rejig.syntaxtree.Const(x))
+            return rejig.syntaxtree.Call("dict", *pairs)
+        else:
+            return rejig.syntaxtree.Const(node.pattr)
 
     def n_LOAD_GLOBAL(self, node):
         return rejig.syntaxtree.Name(node.pattr)
@@ -480,7 +493,7 @@ class BytecodeWalker(object):
         return rejig.syntaxtree.Call(self.n(node[2]), self.n(node[0]), self.n(node[1]))
 
     def n_list(self, node):
-        rejig.syntaxtree.Call("[]", *[self.n(x) for x in node[:-1]])
+        return rejig.syntaxtree.Call("list", *[self.n(x) for x in node[:-1]])
 
     def n_compare(self, node):
         return self.n(node[0])
@@ -504,7 +517,12 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('unary_not', node))
 
     def n_subscript(self, node):
-        raise NotImplementedError(self.nameline('subscript', node))
+        args = self.n(node[1])
+        if isinstance(args, rejig.syntaxtree.Call) and args.fcn == "tuple":
+            args = args.args
+        else:
+            args = (args,)
+        return rejig.syntaxtree.Call("[.]", self.n(node[0]), *args)
 
     def n_subscript2(self, node):
         raise NotImplementedError(self.nameline('subscript2', node))

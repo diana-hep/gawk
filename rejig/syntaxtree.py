@@ -17,8 +17,19 @@ class AST(object):
         self.params = self.params + (node,)
 
 class Call(AST):
+    def __init__(self, fcn, *args, line=None):
+        super(Call, self).__init__(fcn, *args, line=line)
+
+    @property
+    def fcn(self):
+        return self.id
+
+    @property
+    def args(self):
+        return self.params
+
     def dump(self):
-        return u"{0}({1})".format(self.id.dump() if isinstance(self.id, AST) else self.id, u", ".join(x.dump() if isinstance(x, AST) else x for x in self.params))
+        return u"{0}({1})".format(self.fcn.dump() if isinstance(self.fcn, AST) else self.fcn, u", ".join(x.dump() if isinstance(x, AST) else x for x in self.args))
 
 class Const(AST):
     def __init__(self, value, line=None):
