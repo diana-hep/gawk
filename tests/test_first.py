@@ -1,6 +1,6 @@
 import rejig.pybytecode
 
 def testme():
-    return x[1, 2]
+    x = ()
 
 print(rejig.pybytecode.BytecodeWalker(testme).ast().dump())

@@ -80,11 +80,11 @@ class Suite(AST):
         return u"{{{0}}}".format(u"; ".join(x.dump() for x in self.body))
 
 class Assign(AST):
-    def __init__(self, target, expr, line=None):
-        super(Assign, self).__init__(Assign, target, expr, line=line)
+    def __init__(self, targets, expr, line=None):
+        super(Assign, self).__init__(Assign, targets, expr, line=line)
 
     @property
-    def target(self):
+    def targets(self):
         return self.params[0]
 
     @property
@@ -92,4 +92,15 @@ class Assign(AST):
         return self.params[1]
 
     def dump(self):
-        return u"{0} := {1}".format(self.target, self.expr.dump())
+        return u"{0} := {1}".format(u" := ".join(x.dump() for x in self.targets), self.expr.dump())
+
+class Unpack(AST):
+    def __init__(self, subtargets, line=None):
+        super(Unpack, self).__init__(Unpack, *subtargets, line=line)
+
+    @property
+    def subtargets(self):
+        return self.params
+
+    def dump(self):
+        return u"({0})".format(u", ".join(x.dump() for x in self.subtargets))
