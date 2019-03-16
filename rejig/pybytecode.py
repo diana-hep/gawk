@@ -116,10 +116,18 @@ class BytecodeWalker(object):
     def n_set(self, node):
         return rejig.syntaxtree.Call("set", *[self.n(x) for x in node[:-1]])
 
+    def n_LOAD_LISTCOMP(self, node):
+        return node.attr
+
     def n_listcomp(self, node):
         source = self.n(node[3])
 
-        args, body, pred = ast(node[0].attr).params[0].args[0]
+        triple = ast(self.n(node[0])).params[0]
+        if isinstance(triple, rejig.syntaxtree.Call) and triple.fcn == "return":
+            triple = triple.args[0]
+            
+        args, body, pred = triple
+
         if isinstance(args, rejig.syntaxtree.Name):
             args = (args.name,)
         elif isinstance(args, rejig.syntaxtree.Unpack):
@@ -521,7 +529,14 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('setup_loop_lf', node))
 
     def n_genexpr_func(self, node):
-        raise NotImplementedError(self.nameline('genexpr_func', node))
+        args = self.n(node[2])[0]
+        if node[3][0].kind == "comp_body":
+            pred = None
+            body = self.n(node[3][0][0][0])
+        elif node[3][0].kind == "comp_if":
+            pred = self.n(node[3][0][0])
+            body = self.n(node[3][0][2][0][0][0])
+        return args, body, pred
 
     def n_FOR_ITER(self, node):
         raise NotImplementedError(self.nameline('FOR_ITER', node))
@@ -536,10 +551,10 @@ class BytecodeWalker(object):
 
         genexpr_func ::= LOAD_FAST FOR_ITER store comp_iter JUMP_BACK
         '''
-        raise NotImplementedError(self.nameline('generator_exp', node))
+        return self.n_listcomp(node)
 
     def n_LOAD_GENEXPR(self, node):
-        raise NotImplementedError(self.nameline('LOAD_GENEXPR', node))
+        return node.attr
 
     def n_MAKE_FUNCTION_0(self, node):
         raise NotImplementedError(self.nameline('MAKE_FUNCTION_0', node))
@@ -1569,7 +1584,7 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('conditionalnot', node))
 
     def n_load_genexpr(self, node):
-        raise NotImplementedError(self.nameline('load_genexpr', node))
+        return self.n(node[0])
 
     def n_BUILD_TUPLE_1(self, node):
         raise NotImplementedError(self.nameline('BUILD_TUPLE_1', node))

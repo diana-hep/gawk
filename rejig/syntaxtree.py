@@ -65,6 +65,9 @@ class Const(AST):
     def value(self):
         return self.params[0]
 
+    def __repr__(self):
+        return "Const({0})".format(repr(self.value))
+
     def dump(self):
         return repr(self.value)
 
