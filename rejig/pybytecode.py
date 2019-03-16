@@ -3,7 +3,6 @@ import types
 
 import spark_parser
 import uncompyle6.parser
-import uncompyle6.parsers.treenode
 import uncompyle6.scanner
 
 import rejig.syntaxtree
@@ -118,7 +117,7 @@ class BytecodeWalker(object):
         return getattr(self, "n_" + node.kind, self.default)(node)
 
     def default(self, node):
-        raise NotImplementedError("unrecognized node type: " + self.nameline(type(node).__name__ + (" " + repr(node.kind) if isinstance(node, uncompyle6.parsers.treenode.SyntaxTree) else ""), node))
+        raise NotImplementedError("unrecognized node type: " + self.nameline(type(node).__name__ + (" " + repr(node.kind) if hasattr(node, "kind") else ""), node))
 
     def n_build_slice2(self, node):
         return rejig.syntaxtree.Call("slice", self.n(node[0]), self.n(node[1]))
@@ -147,6 +146,9 @@ class BytecodeWalker(object):
         source = self.n(node[3])
         loops = ast(self.n(node[0])).params[0].args[0]
         return self.make_comp(source, loops)
+
+    def n_LOAD_SETCOMP(self, node):
+        return node.attr
 
     def n_stmt(self, node):
         '''
@@ -1539,7 +1541,7 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('set_comp_header', node))
 
     def n_set_comp(self, node):
-        raise NotImplementedError(self.nameline('set_comp', node))
+        raise NotImplementedError(self.nameline('dict_comp_header', node))
 
     def n_dict_comp_header(self, node):
         raise NotImplementedError(self.nameline('dict_comp_header', node))

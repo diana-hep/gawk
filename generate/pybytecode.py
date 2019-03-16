@@ -51,6 +51,7 @@ nodes["call_kw36"] = None
 nodes["set"] = None
 nodes["LOAD_LISTCOMP"] = None
 nodes["listcomp"] = None
+nodes["LOAD_SETCOMP"] = None
 
 for cls in [Python13Parser, Python13ParserSingle, Python14Parser, Python14ParserSingle, Python15Parser, Python15ParserSingle, Python21Parser, Python21ParserSingle, Python22Parser, Python22ParserSingle, Python23Parser, Python23ParserSingle, Python24Parser, Python24ParserSingle, Python25Parser, Python25ParserSingle, Python26Parser, Python26ParserSingle, Python27Parser, Python27ParserSingle, Python2Parser, Python2ParserSingle, Python30Parser, Python30ParserSingle, Python31Parser, Python31ParserSingle, Python32Parser, Python32ParserSingle, Python33Parser, Python33ParserSingle, Python34Parser, Python34ParserSingle, Python35Parser, Python35ParserSingle, Python36Parser, Python36ParserSingle, Python37Parser, Python37ParserSingle, Python3Parser, Python3ParserSingle, PythonParser]:
     for meth in dir(cls):
@@ -68,7 +69,6 @@ import types
 
 import spark_parser
 import uncompyle6.parser
-import uncompyle6.parsers.treenode
 import uncompyle6.scanner
 
 import rejig.syntaxtree
@@ -160,10 +160,34 @@ class BytecodeWalker(object):
                 break
         return rejig.syntaxtree.Suite(tuple(suite))
 
+    def make_comp(self, source, loops):
+        if len(loops) == 1:
+            return loops[0]
+
+        else:
+            src, args, pred = loops[:3]
+            if source is not None:
+                src = source
+            next = self.make_comp(None, loops[3:])
+
+            if isinstance(args, rejig.syntaxtree.Name):
+                args = (args.name,)
+            elif isinstance(args, rejig.syntaxtree.Unpack):
+                args = tuple(x.name for x in args.subtargets)
+            else:
+                raise AssertionError(type(args))
+
+            if pred is not None:
+                filterer = rejig.syntaxtree.Def(args, (), rejig.syntaxtree.Suite((pred,)))
+                src = rejig.syntaxtree.Call(rejig.syntaxtree.Call(".", src, "filter"), filterer)
+            
+            mapper = rejig.syntaxtree.Def(args, (), rejig.syntaxtree.Suite((next,)))
+            return rejig.syntaxtree.Call(rejig.syntaxtree.Call(".", src, "map"), mapper)
+
     def n(self, node):
         return getattr(self, "n_" + node.kind, self.default)(node)
 
     def default(self, node):
-        raise NotImplementedError("unrecognized node type: " + self.nameline(type(node).__name__ + (" " + repr(node.kind) if isinstance(node, uncompyle6.parsers.treenode.SyntaxTree) else ""), node))
+        raise NotImplementedError("unrecognized node type: " + self.nameline(type(node).__name__ + (" " + repr(node.kind) if hasattr(node, "kind") else ""), node))
 
 """ + "\n\n".join("    def n_{0}(self, node):{1}\n        raise NotImplementedError(self.nameline({2}, node))".format(n, "" if nodes[n] is None else "\n        ''{0}''".format(repr(nodes[n]).replace(r"\n", "\n")), repr(n)) for n in nodes))
