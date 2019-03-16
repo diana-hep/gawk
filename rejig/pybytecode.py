@@ -374,7 +374,7 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('JUMP_FORWARD', node))
 
     def n_COME_FROM(self, node):
-        raise NotImplementedError(self.nameline('COME_FROM', node))
+        return None
 
     def n_jb_cont(self, node):
         raise NotImplementedError(self.nameline('jb_cont', node))
@@ -522,10 +522,12 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('dict', node))
 
     def n_and(self, node):
-        raise NotImplementedError(self.nameline('and', node))
+        args = [self.n(x) for x in node]
+        return rejig.syntaxtree.Call("and", *[x for x in args if x is not None])
 
     def n_or(self, node):
-        raise NotImplementedError(self.nameline('or', node))
+        args = [self.n(x) for x in node]
+        return rejig.syntaxtree.Call("or", *[x for x in args if x is not None])
 
     def n_unary_expr(self, node):
         raise NotImplementedError(self.nameline('unary_expr', node))
@@ -534,7 +536,7 @@ class BytecodeWalker(object):
         return rejig.syntaxtree.Call(*[self.n(x) for x in node[:-1]])
 
     def n_unary_not(self, node):
-        raise NotImplementedError(self.nameline('unary_not', node))
+        return rejig.syntaxtree.Call("not", self.n(node[0]))
 
     def n_subscript(self, node):
         args = self.n(node[1])
@@ -709,13 +711,13 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('unary_convert', node))
 
     def n_jmp_false(self, node):
-        raise NotImplementedError(self.nameline('jmp_false', node))
+        return None
 
     def n_come_from_opt(self, node):
         raise NotImplementedError(self.nameline('come_from_opt', node))
 
     def n_jmp_true(self, node):
-        raise NotImplementedError(self.nameline('jmp_true', node))
+        return None
 
     def n_UNARY_CONVERT(self, node):
         raise NotImplementedError(self.nameline('UNARY_CONVERT', node))
@@ -1354,10 +1356,10 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('POP_JUMP_IF_TRUE', node))
 
     def n_JUMP_IF_FALSE_OR_POP(self, node):
-        raise NotImplementedError(self.nameline('JUMP_IF_FALSE_OR_POP', node))
+        return None
 
     def n_JUMP_IF_TRUE_OR_POP(self, node):
-        raise NotImplementedError(self.nameline('JUMP_IF_TRUE_OR_POP', node))
+        return None
 
     def n_SETUP_WITH(self, node):
         raise NotImplementedError(self.nameline('SETUP_WITH', node))
