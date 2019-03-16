@@ -1,6 +1,6 @@
 import rejig.pybytecode
 
 def testme(x):
-    {1: 1, 2: 2}
+    [x**2 for x, y in something]
 
 print(rejig.pybytecode.ast(testme).dump())

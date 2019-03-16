@@ -29,6 +29,9 @@ class Call(AST):
     def args(self, value):
         self.params = value
 
+    def __repr__(self):
+        return "Call({0}, {1})".format(repr(self.fcn), ", ".join(repr(x) for x in self.args))
+
     def dump(self):
         return u"{0}({1})".format(self.fcn.dump() if isinstance(self.fcn, AST) else self.fcn, u", ".join(x.dump() if isinstance(x, AST) else repr(x) for x in self.args))
 
@@ -47,6 +50,9 @@ class CallKeyword(AST):
     @property
     def kwargs(self):
         return self.params[1]
+
+    def __repr__(self):
+        return "CallKeyword({0}, ({1}), ({2}))".format(repr(self.fcn), " ".join(repr(x) + "," for x in self.args), " ".join(repr(x) + "," for x in self.kwargs))
 
     def dump(self):
         return u"{0}({1}, {2})".format(self.fcn.dump() if isinstance(self.fcn, AST) else self.fcn, u", ".join(x.dump() if isinstance(x, AST) else repr(x) for x in self.args), u", ".join("{0}={1}".format(n, x.dump()) if isinstance(x, AST) else repr(x) for n, x in self.kwargs))
@@ -70,6 +76,9 @@ class Name(AST):
     def name(self):
         return self.params[0]
 
+    def __repr__(self):
+        return "Name({0})".format(repr(self.name))
+
     def dump(self):
         return self.name
 
@@ -89,9 +98,16 @@ class Def(AST):
     def body(self):
         return self.params[2]
 
+    def __repr__(self):
+        return "Def(({0}), ({1}), ({2}))".format(" ".join(repr(x) + "," for x in self.argnames), " ".join(repr(x) + "," for x in self.defaults), " ".join(repr(x) + "," for x in self.body))
+
     def dump(self):
-        args = self.argnames[:-len(self.defaults)]
-        kwargs = tuple(zip(self.argnames[-len(self.defaults):], self.defaults))
+        if len(self.defaults) == 0:
+            args = self.argnames
+            kwargs = ()
+        else:
+            args = self.argnames[:-len(self.defaults)]
+            kwargs = tuple(zip(self.argnames[-len(self.defaults):], self.defaults))
         if len(kwargs) == 0:
             return u"({0}) \u2192 {1}".format(u", ".join(args), self.body.dump())
         else:
@@ -104,6 +120,9 @@ class Suite(AST):
     @property
     def body(self):
         return self.params
+
+    def __repr__(self):
+        return "Suite(({0}))".format(" ".join(repr(x) + "," for x in self.body))
 
     def dump(self):
         return u"{{{0}}}".format(u"; ".join(x.dump() for x in self.body))
@@ -120,6 +139,9 @@ class Assign(AST):
     def expr(self):
         return self.params[1]
 
+    def __repr__(self):
+        return "Assign(({0}), {1})".format(" ".join(repr(x) + "," for x in self.targets), repr(self.expr))
+
     def dump(self):
         return u"{0} := {1}".format(u" := ".join(x.dump() for x in self.targets), self.expr.dump())
 
@@ -130,6 +152,9 @@ class Unpack(AST):
     @property
     def subtargets(self):
         return self.params
+
+    def __repr__(self):
+        return "Unpack(({0}))".format(" ".join(repr(x) + "," for x in self.subtargets))
 
     def dump(self):
         return u"({0})".format(u", ".join(x.dump() for x in self.subtargets))

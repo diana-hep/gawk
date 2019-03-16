@@ -116,6 +116,24 @@ class BytecodeWalker(object):
     def n_set(self, node):
         return rejig.syntaxtree.Call("set", *[self.n(x) for x in node[:-1]])
 
+    def n_listcomp(self, node):
+        source = self.n(node[3])
+
+        args, body, pred = ast(node[0].attr).params[0].args[0]
+        if isinstance(args, rejig.syntaxtree.Name):
+            args = (args.name,)
+        elif isinstance(args, rejig.syntaxtree.Unpack):
+            args = tuple(x.name for x in args.subtargets)
+        else:
+            raise AssertionError(type(args))
+
+        if pred is not None:
+            filterer = rejig.syntaxtree.Def(args, (), rejig.syntaxtree.Suite((pred,)))
+            source = rejig.syntaxtree.Call(rejig.syntaxtree.Call(".", source, "filter"), filterer)
+
+        mapper = rejig.syntaxtree.Def(args, (), rejig.syntaxtree.Suite((body,)))
+        return rejig.syntaxtree.Call(rejig.syntaxtree.Call(".", source, "map"), mapper)
+
     def n_stmt(self, node):
         '''
         pass ::=
@@ -328,9 +346,9 @@ class BytecodeWalker(object):
         if len(node) == 1:
             return self.n(node[0])
         elif node[-1].kind == "STORE_ATTR":
-            return (rejig.syntaxtree.Call(".", *[self.n(x) for x in node]),)
+            return (rejig.syntaxtree.Call(".", self.n(node[0]), self.n(node[1])),)
         elif node[-1].kind == "STORE_SUBSCR":
-            return (rejig.syntaxtree.Call("[.]", *[self.n(x) for x in node]),)
+            return (rejig.syntaxtree.Call("[.]", self.n(node[0]), self.n(node[1])),)
         else:
             raise NotImplementedError(self.nameline('store', node))
 
@@ -445,7 +463,14 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('list_if', node))
 
     def n_list_comp(self, node):
-        raise NotImplementedError(self.nameline('list_comp', node))
+        args = self.n(node[1][0][2])[0]
+        if node[1][0][3][0].kind == "lc_body":
+            pred = None
+            body = self.n(node[1][0][3][0][0])
+        elif node[1][0][3][0].kind == "list_if":
+            pred = self.n(node[1][0][3][0][0])
+            body = self.n(node[1][0][3][0][2][0][0])
+        return args, body, pred
 
     def n_BUILD_LIST_0(self, node):
         raise NotImplementedError(self.nameline('BUILD_LIST_0', node))
@@ -659,7 +684,7 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('BINARY_SUBSCR', node))
 
     def n_attribute(self, node):
-        return rejig.syntaxtree.Call(".", self.n(node[0]), self.n(node[1]))
+        return rejig.syntaxtree.Call(".", self.n(node[0]), node[1].pattr)
 
     def n_get_iter(self, node):
         raise NotImplementedError(self.nameline('get_iter', node))
@@ -1658,7 +1683,7 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('import37', node))
 
     def n_attribute37(self, node):
-        return rejig.syntaxtree.Call(".", self.n(node[0]), self.n(node[1]))
+        return rejig.syntaxtree.Call(".", self.n(node[0]), node[1].pattr)
 
     def n_LOAD_METHOD(self, node):
         return node.pattr
