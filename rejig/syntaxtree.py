@@ -35,6 +35,25 @@ class Call(AST):
     def dump(self):
         return u"{0}({1})".format(self.fcn.dump() if isinstance(self.fcn, AST) else self.fcn, u", ".join(x.dump() if isinstance(x, AST) else x for x in self.args))
 
+class CallKeyword(AST):
+    def __init__(self, fcn, args, kwargs, line=None):
+        super(CallKeyword, self).__init__(fcn, args, sorted(kwargs, key=lambda x: x[0]), line=line)
+
+    @property
+    def fcn(self):
+        return self.id
+
+    @property
+    def args(self):
+        return self.params[0]
+
+    @property
+    def kwargs(self):
+        return self.params[1]
+
+    def dump(self):
+        return u"{0}({1}, {2})".format(self.fcn.dump() if isinstance(self.fcn, AST) else self.fcn, u", ".join(x.dump() if isinstance(x, AST) else x for x in self.args), u", ".join("{0}={1}".format(n, x.dump()) if isinstance(x, AST) else x for n, x in self.kwargs))
+
 class Const(AST):
     def __init__(self, value, line=None):
         super(Const, self).__init__(Const, value, line=line)

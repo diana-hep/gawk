@@ -60,6 +60,14 @@ class BytecodeWalker(object):
     def n_tuple(self, node):
         return rejig.syntaxtree.Call("tuple", *[self.n(x) for x in node[:-1]])
 
+    def n_call_kw36(self, node):
+        fcn = self.n(node[0])
+        allargs = tuple(self.n(x) for x in node[1:-2])
+        keywords = node[-2].pattr
+        args = allargs[:-len(keywords)]
+        kwargs = tuple(zip(keywords, allargs[-len(keywords):]))
+        return rejig.syntaxtree.CallKeyword(fcn, args, kwargs)
+
     def n_stmt(self, node):
         '''
         pass ::=
@@ -407,7 +415,7 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('LIST_APPEND', node))
 
     def n_LOAD_FAST(self, node):
-        raise NotImplementedError(self.nameline('LOAD_FAST', node))
+        return rejig.syntaxtree.Name(node.pattr)
 
     def n_comp_for(self, node):
         raise NotImplementedError(self.nameline('comp_for', node))
@@ -530,7 +538,7 @@ class BytecodeWalker(object):
         return rejig.syntaxtree.Call("or", *[x for x in args if x is not None])
 
     def n_unary_expr(self, node):
-        raise NotImplementedError(self.nameline('unary_expr', node))
+        return rejig.syntaxtree.Call(self.n(node[1]), self.n(node[0]))
 
     def n_call(self, node):
         return rejig.syntaxtree.Call(*[self.n(x) for x in node[:-1]])
@@ -559,49 +567,49 @@ class BytecodeWalker(object):
         return "+"
 
     def n_BINARY_MULTIPLY(self, node):
-        raise NotImplementedError(self.nameline('BINARY_MULTIPLY', node))
+        return "*"
 
     def n_BINARY_AND(self, node):
-        raise NotImplementedError(self.nameline('BINARY_AND', node))
+        return "&"
 
     def n_BINARY_OR(self, node):
-        raise NotImplementedError(self.nameline('BINARY_OR', node))
+        return "|"
 
     def n_BINARY_XOR(self, node):
-        raise NotImplementedError(self.nameline('BINARY_XOR', node))
+        return "^"
 
     def n_BINARY_SUBTRACT(self, node):
-        raise NotImplementedError(self.nameline('BINARY_SUBTRACT', node))
+        return "-"
 
     def n_BINARY_TRUE_DIVIDE(self, node):
-        raise NotImplementedError(self.nameline('BINARY_TRUE_DIVIDE', node))
+        return "/"
 
     def n_BINARY_FLOOR_DIVIDE(self, node):
-        raise NotImplementedError(self.nameline('BINARY_FLOOR_DIVIDE', node))
+        return "//"
 
     def n_BINARY_MODULO(self, node):
-        raise NotImplementedError(self.nameline('BINARY_MODULO', node))
+        return "%"
 
     def n_BINARY_LSHIFT(self, node):
-        raise NotImplementedError(self.nameline('BINARY_LSHIFT', node))
+        return "<<"
 
     def n_BINARY_RSHIFT(self, node):
-        raise NotImplementedError(self.nameline('BINARY_RSHIFT', node))
+        return ">>"
 
     def n_BINARY_POWER(self, node):
-        raise NotImplementedError(self.nameline('BINARY_POWER', node))
+        return "**"
 
     def n_unary_op(self, node):
-        raise NotImplementedError(self.nameline('unary_op', node))
+        return self.n(node[0])
 
     def n_UNARY_POSITIVE(self, node):
-        raise NotImplementedError(self.nameline('UNARY_POSITIVE', node))
+        return "u+"
 
     def n_UNARY_NEGATIVE(self, node):
-        raise NotImplementedError(self.nameline('UNARY_NEGATIVE', node))
+        return "u-"
 
     def n_UNARY_INVERT(self, node):
-        raise NotImplementedError(self.nameline('UNARY_INVERT', node))
+        return "~"
 
     def n_UNARY_NOT(self, node):
         raise NotImplementedError(self.nameline('UNARY_NOT', node))
