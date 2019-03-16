@@ -91,9 +91,15 @@ class BytecodeWalker(object):
     def nameline(self, name, node):
         lineno = getattr(node, "linestart", None)
         if lineno is None:
-            return "{0} in {1}".format(name, self.sourcepath)
+            if self.sourcepath is None:
+                return name
+            else:
+                return "{0} in {1}".format(name, self.sourcepath)
         else:
-            return "{0} on line {1} of {2}".format(name, self.linestart + node.linestart, self.sourcepath)
+            if self.sourcepath is None:
+                return "{0} on line {1}".format(name, self.linestart + node.linestart)
+            else:
+                return "{0} on line {1} of {2}".format(name, self.linestart + node.linestart, self.sourcepath)
 
     def n(self, node):
         return getattr(self, "n_" + node.kind, self.default)(node)

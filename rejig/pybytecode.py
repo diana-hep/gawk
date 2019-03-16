@@ -34,9 +34,15 @@ class BytecodeWalker(object):
     def nameline(self, name, node):
         lineno = getattr(node, "linestart", None)
         if lineno is None:
-            return "{0} in {1}".format(name, self.sourcepath)
+            if self.sourcepath is None:
+                return name
+            else:
+                return "{0} in {1}".format(name, self.sourcepath)
         else:
-            return "{0} on line {1} of {2}".format(name, self.linestart + node.linestart, self.sourcepath)
+            if self.sourcepath is None:
+                return "{0} on line {1}".format(name, self.linestart + node.linestart)
+            else:
+                return "{0} on line {1} of {2}".format(name, self.linestart + node.linestart, self.sourcepath)
 
     def n(self, node):
         return getattr(self, "n_" + node.kind, self.default)(node)
@@ -280,7 +286,7 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('STORE_SUBSCR', node))
 
     def n_LOAD_ATTR(self, node):
-        raise NotImplementedError(self.nameline('LOAD_ATTR', node))
+        return node.pattr
 
     def n_STORE_ATTR(self, node):
         raise NotImplementedError(self.nameline('STORE_ATTR', node))
@@ -474,10 +480,10 @@ class BytecodeWalker(object):
         return rejig.syntaxtree.Call(self.n(node[2]), self.n(node[0]), self.n(node[1]))
 
     def n_list(self, node):
-        raise NotImplementedError(self.nameline('list', node))
+        rejig.syntaxtree.Call("[]", *[self.n(x) for x in node[:-1]])
 
     def n_compare(self, node):
-        raise NotImplementedError(self.nameline('compare', node))
+        return self.n(node[0])
 
     def n_dict(self, node):
         raise NotImplementedError(self.nameline('dict', node))
@@ -492,7 +498,7 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('unary_expr', node))
 
     def n_call(self, node):
-        raise NotImplementedError(self.nameline('call', node))
+        return rejig.syntaxtree.Call(*[self.n(x) for x in node[:-1]])
 
     def n_unary_not(self, node):
         raise NotImplementedError(self.nameline('unary_not', node))
@@ -564,7 +570,7 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('BINARY_SUBSCR', node))
 
     def n_attribute(self, node):
-        raise NotImplementedError(self.nameline('attribute', node))
+        return rejig.syntaxtree.Call(".", self.n(node[0]), self.n(node[1]))
 
     def n_get_iter(self, node):
         raise NotImplementedError(self.nameline('get_iter', node))
@@ -606,10 +612,10 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('compare_chained', node))
 
     def n_compare_single(self, node):
-        raise NotImplementedError(self.nameline('compare_single', node))
+        return rejig.syntaxtree.Call(self.n(node[2]), self.n(node[0]), self.n(node[1]))
 
     def n_COMPARE_OP(self, node):
-        raise NotImplementedError(self.nameline('COMPARE_OP', node))
+        return node.pattr
 
     def n_compare_chained1(self, node):
         raise NotImplementedError(self.nameline('compare_chained1', node))
@@ -621,7 +627,7 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('kvlist', node))
 
     def n_pos_arg(self, node):
-        raise NotImplementedError(self.nameline('pos_arg', node))
+        return self.n(node[0])
 
     def n_LOAD_LOCALS(self, node):
         raise NotImplementedError(self.nameline('LOAD_LOCALS', node))
@@ -1539,10 +1545,10 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('import37', node))
 
     def n_attribute37(self, node):
-        raise NotImplementedError(self.nameline('attribute37', node))
+        return rejig.syntaxtree.Call(".", self.n(node[0]), self.n(node[1]))
 
     def n_LOAD_METHOD(self, node):
-        raise NotImplementedError(self.nameline('LOAD_METHOD', node))
+        return node.pattr
 
     def n_CALL_METHOD_0(self, node):
         raise NotImplementedError(self.nameline('CALL_METHOD_0', node))

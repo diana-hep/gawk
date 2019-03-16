@@ -18,7 +18,7 @@ class AST(object):
 
 class Call(AST):
     def dump(self):
-        return u"{0}({1})".format(self.id, u", ".join(x.dump() for x in self.params))
+        return u"{0}({1})".format(self.id.dump() if isinstance(self.id, AST) else self.id, u", ".join(x.dump() if isinstance(x, AST) else x for x in self.params))
 
 class Const(AST):
     def __init__(self, value, line=None):

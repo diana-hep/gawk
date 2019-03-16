@@ -1,6 +1,6 @@
 import rejig.pybytecode
 
 def testme():
-    return x + 5 + y
+    return []
 
 print(rejig.pybytecode.BytecodeWalker(testme).ast().dump())
