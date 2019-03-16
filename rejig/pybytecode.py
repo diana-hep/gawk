@@ -113,6 +113,9 @@ class BytecodeWalker(object):
         kwargs = tuple(zip(keywords, allargs[-len(keywords):]))
         return rejig.syntaxtree.CallKeyword(fcn, args, kwargs)
 
+    def n_set(self, node):
+        return rejig.syntaxtree.Call("set", *[self.n(x) for x in node[:-1]])
+
     def n_stmt(self, node):
         '''
         pass ::=
@@ -556,7 +559,16 @@ class BytecodeWalker(object):
         return self.n(node[0])
 
     def n_dict(self, node):
-        raise NotImplementedError(self.nameline('dict', node))
+        if len(node) == 1 and node[0].kind.startswith("kvlist_"):
+            return rejig.syntaxtree.Call("dict", *[self.n(x) for x in node[0][:-1]])
+        elif node[-1].kind.startswith("BUILD_CONST_KEY_MAP_"):
+            pairs = []
+            for i, x in enumerate(node[:-2]):
+                pairs.append(node[-2].pattr[i])
+                pairs.append(self.n(x))
+            return rejig.syntaxtree.Call("dict", *pairs)
+        else:
+            raise NotImplementedError(self.nameline('dict', node))
 
     def n_and(self, node):
         args = [self.n(x) for x in node]
@@ -660,7 +672,7 @@ class BytecodeWalker(object):
         return rejig.syntaxtree.Def(code.co_varnames[:code.co_argcount], (), ast(code))
 
     def n_conditional(self, node):
-        raise NotImplementedError(self.nameline('conditional', node))
+        return rejig.syntaxtree.Call("?", self.n(node[0]), self.n(node[2]), self.n(node[4]))
 
     def n_ret_expr(self, node):
         return self.n(node[0])

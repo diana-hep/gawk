@@ -13,9 +13,6 @@ class AST(object):
     def __hash__(self):
         return hash((type(self), self.id, self.params))
 
-    def append(self, node):
-        self.params = self.params + (node,)
-
 class Call(AST):
     def __init__(self, fcn, *args, line=None):
         super(Call, self).__init__(fcn, *args, line=line)
@@ -33,7 +30,7 @@ class Call(AST):
         self.params = value
 
     def dump(self):
-        return u"{0}({1})".format(self.fcn.dump() if isinstance(self.fcn, AST) else self.fcn, u", ".join(x.dump() if isinstance(x, AST) else x for x in self.args))
+        return u"{0}({1})".format(self.fcn.dump() if isinstance(self.fcn, AST) else self.fcn, u", ".join(x.dump() if isinstance(x, AST) else repr(x) for x in self.args))
 
 class CallKeyword(AST):
     def __init__(self, fcn, args, kwargs, line=None):
@@ -52,7 +49,7 @@ class CallKeyword(AST):
         return self.params[1]
 
     def dump(self):
-        return u"{0}({1}, {2})".format(self.fcn.dump() if isinstance(self.fcn, AST) else self.fcn, u", ".join(x.dump() if isinstance(x, AST) else x for x in self.args), u", ".join("{0}={1}".format(n, x.dump()) if isinstance(x, AST) else x for n, x in self.kwargs))
+        return u"{0}({1}, {2})".format(self.fcn.dump() if isinstance(self.fcn, AST) else self.fcn, u", ".join(x.dump() if isinstance(x, AST) else repr(x) for x in self.args), u", ".join("{0}={1}".format(n, x.dump()) if isinstance(x, AST) else repr(x) for n, x in self.kwargs))
 
 class Const(AST):
     def __init__(self, value, line=None):

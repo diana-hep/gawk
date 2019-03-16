@@ -503,98 +503,151 @@ def check(x):
 # check("a and b and c and d and e")
 # check("a and b and c and d and e")
 
-check("def g(): return 3.14")
-check("""def g():
-    return 3.14""")
-check("def g(x): return x**2")
-check("""def g(x):
-    return x**2""")
-check("lambda: 3.14")
-check("lambda x: x**2")
-check("return (lambda x: x**2)")
+# check("def g(): return 3.14")
+# check("""def g():
+#     return 3.14""")
+# check("def g(x): return x**2")
+# check("""def g(x):
+#     return x**2""")
+# check("lambda: 3.14")
+# check("lambda x: x**2")
+# check("return (lambda x: x**2)")
 
-check("1 if x == 0 else 2")
-check("y = (1 if x == 0 else 2)")
-check("1 if x == 0 else None")
-check("""if x == 0:
-    return 1""")
-check("""if x == 0:
-    y = 1
-    return 1""")
-check("""if x == 0:
-    return 1
-else:
-    return 2""")
-check("""if x == 0:
-    y = 1
-    return 1
-else:
-    y = 2
-    return 2""")
-check("""if x == 0:
-    return 1
-elif x == 1:
-    return 2
-else:
-    return 3""")
-check("""if x == 0:
-    y = 1
-    return 1
-elif x == 1:
-    y = 2
-    return 2
-else:
-    y = 3
-    return 3""")
-check("""if x == 0:
-    y = 1""")
-check("""if x == 0:
-    y = 1
-    z = 1""")
-check("""if x == 0:
-    y = 1
-else:
-    y = 2""")
-check("""if x == 0:
-    y = 1
-    z = 1
-else:
-    y = 2
-    z = 2""")
-check("""if x == 0:
-    y = 1
-elif x == 1:
-    y = 2
-else:
-    y = 3""")
-check("""if x == 0:
-    y = 1
-    z = 1
-elif x == 1:
-    y = 2
-    z = 2
-else:
-    y = 3
-    z = 3""")
-check("print()")
-check("print(1)")
-check("print(1, 2, 3)")
+# check("1 if x == 0 else 2")
+# check("y = (1 if x == 0 else 2)")
+# check("1 if x == 0 else None")
+# check("return (1 if x == 0 else 2)")
+# check("return (1 if x == 0 else None)")
+# check("""if x == 0:
+#     return 1""")
+# check("""if x == 0:
+#     y = 1
+#     return 1""")
+# check("""if x == 0:
+#     return 1
+# else:
+#     return 2""")
+# check("""if x == 0:
+#     y = 1
+#     return 1
+# else:
+#     y = 2
+#     return 2""")
+# check("""if x == 0:
+#     return 1
+# elif x == 1:
+#     return 2
+# else:
+#     return 3""")
+# check("""if x == 0:
+#     y = 1
+#     return 1
+# elif x == 1:
+#     y = 2
+#     return 2
+# else:
+#     y = 3
+#     return 3""")
+# check("""if x == 0:
+#     y = 1""")
+# check("""if x == 0:
+#     y = 1
+#     z = 1""")
+# check("""if x == 0:
+#     y = 1
+# else:
+#     y = 2""")
+# check("""if x == 0:
+#     y = 1
+#     z = 1
+# else:
+#     y = 2
+#     z = 2""")
+# check("""if x == 0:
+#     y = 1
+# elif x == 1:
+#     y = 2
+# else:
+#     y = 3""")
+# check("""if x == 0:
+#     y = 1
+#     z = 1
+# elif x == 1:
+#     y = 2
+#     z = 2
+# else:
+#     y = 3
+#     z = 3""")
+# check("print()")
+# check("print(1)")
+# check("print(1, 2, 3)")
 
+check("[]")
+check("[1]")
+check("[1, 2]")
+check("[one]")
+check("[one, two]")
+check("['one']")
+check("['one', 'two']")
+check("set([])")
+check("set([1])")
+check("set([1, 2])")
+check("set([one])")
+check("set([one, two])")
+check("set(['one'])")
+check("set(['one', 'two'])")
 check("{}")
 check("{1}")
 check("{1, 2}")
+check("{one}")
+check("{one, two}")
+check("{'one'}")
+check("{'one', 'two'}")
 check("{'x': 1}")
 check("{'x': 1, 'y': 2}")
+check("{'x': 1, 'y': 2, 'z': 3}")
+check("{'x': one}")
+check("{'x': one, 'y': two}")
+check("{'x': one, 'y': two, 'z': three}")
+check("{1: 1}")
+check("{1: 1, 2: 2}")
+check("{1: 1, 2: 2, 3: 3}")
+check("{1: one}")
+check("{1: one, 2: two}")
+check("{1: one, 2: two, 3: three}")
+check("{one: 1}")
+check("{one: 1, two: 2}")
+check("{one: 1, two: 2, three: 3}")
+check("{one: one}")
+check("{one: one, two: two}")
+check("{one: one, two: two, three: three}")
 
 check("[x**2 for x in something]")
 check("f([x**2 for x in something])")
 check("f(x**2 for x in something)")
-
 check("[x**2 for x in something if x > 0]")
 check("[y**2 for x in something for y in x]")
 check("[y**2 for x in something for y in x if x > 0]")
 check("[y**2 for x in something for y in x if y > 0]")
 check("[y**2 for x in something for y in x if x > 0 and y > 0]")
+
+check("{x**2 for x in something}")
+check("f({x**2 for x in something})")
+check("f(x**2 for x in something)")
+check("{x**2 for x in something if x > 0}")
+check("{y**2 for x in something for y in x}")
+check("{y**2 for x in something for y in x if x > 0}")
+check("{y**2 for x in something for y in x if y > 0}")
+check("{y**2 for x in something for y in x if x > 0 and y > 0}")
+
+check("{x: x**2 for x in something}")
+check("f({x: x**2 for x in something})")
+check("f(x: x**2 for x in something)")
+check("{x: x**2 for x in something if x > 0}")
+check("{x: y**2 for x in something for y in x}")
+check("{x: y**2 for x in something for y in x if x > 0}")
+check("{y: y**2 for x in something for y in x if y > 0}")
+check("{y: y**2 for x in something for y in x if x > 0 and y > 0}")
 
 check("f(one=1)")
 check("f(one=1, two=2)")
