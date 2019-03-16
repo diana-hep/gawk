@@ -117,6 +117,46 @@ class BytecodeWalker(object):
             else:
                 return "{0} on line {1} of {2}".format(name, self.linestart + node.linestart, self.sourcepath)
 
+    def find_offset(self, node, offset):
+        if hasattr(node, "offset"):
+            return True, node if isinstance(node.offset, int) and node.offset >= offset else None
+        else:
+            first = True
+            for x in node:
+                subfirst, subnode = self.find_offset(x, offset)
+                if subnode is not None:
+                    if first and subfirst:
+                        return True, node
+                    else:
+                        return False, subnode
+                first = False
+            else:
+                return False, None
+
+    def make_const(self, obj):
+        if isinstance(obj, tuple):
+            return rejig.syntaxtree.Call("tuple", *[self.make_const(x) for x in obj])
+        elif isinstance(obj, list):
+            return rejig.syntaxtree.Call("list", *[self.make_const(x) for x in obj])
+        elif isinstance(obj, set):
+            return rejig.syntaxtree.Call("set", *[self.make_const(x) for x in obj])
+        elif isinstance(obj, dict):
+            pairs = []
+            for n, x in obj.items():
+                pairs.append(self.make_const(n))
+                pairs.append(self.make_const(x))
+            return rejig.syntaxtree.Call("dict", *pairs)
+        else:
+            return rejig.syntaxtree.Const(obj)
+
+    def make_suite(self, node):
+        suite = []
+        for x in node:
+            suite.append(self.n(x))
+            if isinstance(suite[-1], rejig.syntaxtree.Call) and suite[-1].fcn == "return":
+                break
+        return rejig.syntaxtree.Suite(tuple(suite))
+
     def n(self, node):
         return getattr(self, "n_" + node.kind, self.default)(node)
 

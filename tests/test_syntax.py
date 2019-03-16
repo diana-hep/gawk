@@ -511,22 +511,71 @@ check("""def g(x):
     return x**2""")
 check("lambda: 3.14")
 check("lambda x: x**2")
+check("return (lambda x: x**2)")
 
 check("1 if x == 0 else 2")
 check("y = (1 if x == 0 else 2)")
 check("1 if x == 0 else None")
 check("""if x == 0:
+    return 1""")
+check("""if x == 0:
+    y = 1
+    return 1""")
+check("""if x == 0:
     return 1
 else:
     return 2""")
 check("""if x == 0:
-    return 1""")
+    y = 1
+    return 1
+else:
+    y = 2
+    return 2""")
+check("""if x == 0:
+    return 1
+elif x == 1:
+    return 2
+else:
+    return 3""")
+check("""if x == 0:
+    y = 1
+    return 1
+elif x == 1:
+    y = 2
+    return 2
+else:
+    y = 3
+    return 3""")
+check("""if x == 0:
+    y = 1""")
+check("""if x == 0:
+    y = 1
+    z = 1""")
 check("""if x == 0:
     y = 1
 else:
     y = 2""")
 check("""if x == 0:
-    y = 1""")
+    y = 1
+    z = 1
+else:
+    y = 2
+    z = 2""")
+check("""if x == 0:
+    y = 1
+elif x == 1:
+    y = 2
+else:
+    y = 3""")
+check("""if x == 0:
+    y = 1
+    z = 1
+elif x == 1:
+    y = 2
+    z = 2
+else:
+    y = 3
+    z = 3""")
 check("print()")
 check("print(1)")
 check("print(1, 2, 3)")
