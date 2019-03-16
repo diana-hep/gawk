@@ -90,6 +90,30 @@ class BytecodeWalker(object):
                 break
         return rejig.syntaxtree.Suite(tuple(suite))
 
+    def make_comp(self, source, loops):
+        if len(loops) == 1:
+            return loops[0]
+
+        else:
+            src, args, pred = loops[:3]
+            if source is not None:
+                src = source
+            next = self.make_comp(None, loops[3:])
+
+            if isinstance(args, rejig.syntaxtree.Name):
+                args = (args.name,)
+            elif isinstance(args, rejig.syntaxtree.Unpack):
+                args = tuple(x.name for x in args.subtargets)
+            else:
+                raise AssertionError(type(args))
+
+            if pred is not None:
+                filterer = rejig.syntaxtree.Def(args, (), rejig.syntaxtree.Suite((pred,)))
+                src = rejig.syntaxtree.Call(rejig.syntaxtree.Call(".", src, "filter"), filterer)
+            
+            mapper = rejig.syntaxtree.Def(args, (), rejig.syntaxtree.Suite((next,)))
+            return rejig.syntaxtree.Call(rejig.syntaxtree.Call(".", src, "map"), mapper)
+
     def n(self, node):
         return getattr(self, "n_" + node.kind, self.default)(node)
 
@@ -121,26 +145,8 @@ class BytecodeWalker(object):
 
     def n_listcomp(self, node):
         source = self.n(node[3])
-
-        triple = ast(self.n(node[0])).params[0]
-        if isinstance(triple, rejig.syntaxtree.Call) and triple.fcn == "return":
-            triple = triple.args[0]
-            
-        args, body, pred = triple
-
-        if isinstance(args, rejig.syntaxtree.Name):
-            args = (args.name,)
-        elif isinstance(args, rejig.syntaxtree.Unpack):
-            args = tuple(x.name for x in args.subtargets)
-        else:
-            raise AssertionError(type(args))
-
-        if pred is not None:
-            filterer = rejig.syntaxtree.Def(args, (), rejig.syntaxtree.Suite((pred,)))
-            source = rejig.syntaxtree.Call(rejig.syntaxtree.Call(".", source, "filter"), filterer)
-
-        mapper = rejig.syntaxtree.Def(args, (), rejig.syntaxtree.Suite((body,)))
-        return rejig.syntaxtree.Call(rejig.syntaxtree.Call(".", source, "map"), mapper)
+        loops = ast(self.n(node[0])).params[0].args[0]
+        return self.make_comp(source, loops)
 
     def n_stmt(self, node):
         '''
@@ -471,14 +477,27 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('list_if', node))
 
     def n_list_comp(self, node):
-        args = self.n(node[1][0][2])[0]
-        if node[1][0][3][0].kind == "lc_body":
-            pred = None
-            body = self.n(node[1][0][3][0][0])
-        elif node[1][0][3][0].kind == "list_if":
-            pred = self.n(node[1][0][3][0][0])
-            body = self.n(node[1][0][3][0][2][0][0])
-        return args, body, pred
+        out = ()
+        node = node[1][0]
+
+        while True:
+            src = self.n(node[0])
+            args = self.n(node[2])[0]
+            if node[3][0].kind == "list_if":
+                pred = self.n(node[3][0][0])
+                node = node[3][0][2]
+            else:
+                pred = None
+                node = node[3]
+
+            out = out + (src, args, pred)
+
+            if node[0].kind == "lc_body":
+                body = self.n(node[0][0])
+                out = out + (body,)
+                return out
+            else:
+                node = node[0]
 
     def n_BUILD_LIST_0(self, node):
         raise NotImplementedError(self.nameline('BUILD_LIST_0', node))
@@ -529,14 +548,26 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('setup_loop_lf', node))
 
     def n_genexpr_func(self, node):
-        args = self.n(node[2])[0]
-        if node[3][0].kind == "comp_body":
-            pred = None
-            body = self.n(node[3][0][0][0])
-        elif node[3][0].kind == "comp_if":
-            pred = self.n(node[3][0][0])
-            body = self.n(node[3][0][2][0][0][0])
-        return args, body, pred
+        out = ()
+
+        while True:
+            src = self.n(node[0])
+            args = self.n(node[2])[0]
+            if node[3][0].kind == "comp_if":
+                pred = self.n(node[3][0][0])
+                node = node[3][0][2]
+            else:
+                pred = None
+                node = node[3]
+
+            out = out + (src, args, pred)
+
+            if node[0].kind == "comp_body":
+                body = self.n(node[0][0][0])
+                out = out + (body,)
+                return out
+            else:
+                node = node[0]
 
     def n_FOR_ITER(self, node):
         raise NotImplementedError(self.nameline('FOR_ITER', node))
@@ -551,7 +582,9 @@ class BytecodeWalker(object):
 
         genexpr_func ::= LOAD_FAST FOR_ITER store comp_iter JUMP_BACK
         '''
-        return self.n_listcomp(node)
+        source = self.n(node[3])
+        loops = ast(self.n(node[0])).params[0]
+        return self.make_comp(source, loops)
 
     def n_LOAD_GENEXPR(self, node):
         return node.attr
@@ -702,7 +735,7 @@ class BytecodeWalker(object):
         return rejig.syntaxtree.Call(".", self.n(node[0]), node[1].pattr)
 
     def n_get_iter(self, node):
-        raise NotImplementedError(self.nameline('get_iter', node))
+        return self.n(node[0])
 
     def n_YIELD_VALUE(self, node):
         raise NotImplementedError(self.nameline('YIELD_VALUE', node))

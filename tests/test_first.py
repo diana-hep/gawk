@@ -1,6 +1,6 @@
 import rejig.pybytecode
 
 def testme(x):
-    f(x**2 for x in something if x > 0)
+    f(y**2 for x in something if x for y in x if y)
 
 print(rejig.pybytecode.ast(testme).dump())
