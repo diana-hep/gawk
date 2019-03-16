@@ -3,7 +3,7 @@ import rejig.pybytecode
 def check(x):
     env = {}
     exec("def f():\n    " + "\n    ".join(x.split("\n")), env)
-    print(x, "\t\t|\t\t", rejig.pybytecode.BytecodeWalker(env["f"]).ast().dump())
+    print(x, "\t\t|\t\t", rejig.pybytecode.ast(env["f"]).dump())
 
 # check('"hello"')
 # check('''.3''')

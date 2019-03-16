@@ -1,6 +1,7 @@
 import rejig.pybytecode
 
 def testme():
-    return f(g, x=1, y=z)
+    def g(): return 3.14
+    return None
 
-print(rejig.pybytecode.BytecodeWalker(testme).ast().dump())
+print(rejig.pybytecode.ast(testme).dump())

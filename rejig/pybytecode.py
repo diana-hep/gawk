@@ -1,5 +1,5 @@
 import sys
-import inspect
+import types
 
 import spark_parser
 import uncompyle6.parser
@@ -8,12 +8,22 @@ import uncompyle6.scanner
 
 import rejig.syntaxtree
 
+asts = {}
+
+def ast(code, pyversion=None, debug_parser=spark_parser.DEFAULT_DEBUG):
+    if not isinstance(code, types.CodeType):
+        code = code.__code__
+    got = asts.get(code.co_code, None)
+    if got is None:
+        got = asts[code.co_code] = BytecodeWalker(code, pyversion=pyversion, debug_parser=debug_parser).ast()
+    return got
+
 class BytecodeWalker(object):
-    def __init__(self, function, pyversion=None, debug_parser=spark_parser.DEFAULT_DEBUG):
-        self.code = function.__code__
-        self.sourcepath = inspect.getsourcefile(function)
+    def __init__(self, code, pyversion=None, debug_parser=spark_parser.DEFAULT_DEBUG):
+        self.code = code
+        self.sourcepath = self.code.co_filename
         try:
-            self.linestart = inspect.getsourcelines(function)[1]
+            self.linestart = self.code.co_firstlineno - 1
         except:
             self.linestart = 0
 
@@ -784,10 +794,11 @@ class BytecodeWalker(object):
         load_closure       ::= load_closure LOAD_CLOSURE
         load_closure       ::= LOAD_CLOSURE
         '''
-        raise NotImplementedError(self.nameline('function_def', node))
+        return rejig.syntaxtree.Assign(self.n(node[-1]), self.n(node[0]))
 
     def n_mkfunc(self, node):
-        raise NotImplementedError(self.nameline('mkfunc', node))
+        code = node[0].attr
+        return rejig.syntaxtree.Def(code.co_varnames[:code.co_argcount], (), ast(code))
 
     def n_function_def_deco(self, node):
         raise NotImplementedError(self.nameline('function_def_deco', node))

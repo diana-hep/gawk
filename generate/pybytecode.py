@@ -61,21 +61,20 @@ for cls in [Python13Parser, Python13ParserSingle, Python14Parser, Python14Parser
                         nodes[n] = doc
 
 print(r"""import sys
-import inspect
 
 import spark_parser
 import uncompyle6.parser
 import uncompyle6.parsers.treenode
 import uncompyle6.scanner
 
-import gawk.syntaxtree
+import rejig.syntaxtree
 
 class BytecodeWalker(object):
     def __init__(self, function, pyversion=None, debug_parser=spark_parser.DEFAULT_DEBUG):
         self.code = function.__code__
-        self.sourcepath = inspect.getsourcefile(function)
+        self.sourcepath = self.code.co_filename
         try:
-            self.linestart = inspect.getsourcelines(function)[1]
+            self.linestart = self.code.co_firstlineno - 1
         except:
             self.linestart = 0
 

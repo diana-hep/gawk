@@ -77,19 +77,28 @@ class Name(AST):
         return self.name
 
 class Def(AST):
-    def __init__(self, argnames, body, line=None):
-        super(Def, self).__init__(Def, argnames, body, line=line)
+    def __init__(self, argnames, defaults, body, line=None):
+        super(Def, self).__init__(Def, argnames, defaults, body, line=line)
 
     @property
     def argnames(self):
         return self.params[0]
 
     @property
-    def body(self):
+    def defaults(self):
         return self.params[1]
 
+    @property
+    def body(self):
+        return self.params[2]
+
     def dump(self):
-        return u"({0}) \u2291 {1}".format(u", ".join(self.argnames), self.body.dump())
+        args = self.argnames[:-len(self.defaults)]
+        kwargs = tuple(zip(self.argnames[-len(self.defaults):], self.defaults))
+        if len(kwargs) == 0:
+            return u"({0}) \u2192 {1}".format(u", ".join(args), self.body.dump())
+        else:
+            return u"({0}, {1}) \u2192 {2}".format(u", ".join(args), u", ".join("{0}={1}".format(n, x) for n, x in kwargs), self.body.dump())
 
 class Suite(AST):
     def __init__(self, body, line=None):
