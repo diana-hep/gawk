@@ -649,11 +649,10 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('LAMBDA_MARKER', node))
 
     def n_compare_chained(self, node):
-        args = [self.n(x) for x in node]
-        print(args)
-
-
-        raise NotImplementedError(self.nameline('compare_chained', node))
+        expr = self.n(node[0])
+        rest = self.n(node[1])
+        rest[0].args = (expr,) + rest[0].args
+        return rejig.syntaxtree.Call("and", *rest)
 
     def n_compare_single(self, node):
         return rejig.syntaxtree.Call(self.n(node[2]), self.n(node[0]), self.n(node[1]))
@@ -662,18 +661,16 @@ class BytecodeWalker(object):
         return node.pattr
 
     def n_compare_chained1(self, node):
-        print("n_compare_chained1")
-        print(node)
-        print("A", self.n(node[0]))
-        print("B", self.n(node[3]))
-        print("C", self.n(node[5]))
-
-        
-
-        raise NotImplementedError(self.nameline('compare_chained1', node))
+        expr = self.n(node[0])
+        op = self.n(node[3])
+        rest = self.n(node[5])
+        rest[0].args = (expr,) + rest[0].args
+        return (rejig.syntaxtree.Call(op, expr),) + rest
 
     def n_compare_chained2(self, node):
-        return self.n(node[1]), self.n(node[0])
+        expr = self.n(node[0])
+        op = self.n(node[1])
+        return (rejig.syntaxtree.Call(op, expr),)
 
     def n_kvlist(self, node):
         raise NotImplementedError(self.nameline('kvlist', node))

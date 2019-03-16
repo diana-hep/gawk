@@ -28,6 +28,10 @@ class Call(AST):
     def args(self):
         return self.params
 
+    @args.setter
+    def args(self, value):
+        self.params = value
+
     def dump(self):
         return u"{0}({1})".format(self.fcn.dump() if isinstance(self.fcn, AST) else self.fcn, u", ".join(x.dump() if isinstance(x, AST) else x for x in self.args))
 

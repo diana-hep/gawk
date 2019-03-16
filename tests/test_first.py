@@ -1,6 +1,6 @@
 import rejig.pybytecode
 
 def testme():
-    x = ()
+    return 1 < y < 2
 
 print(rejig.pybytecode.BytecodeWalker(testme).ast().dump())
