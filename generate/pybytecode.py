@@ -61,6 +61,7 @@ for cls in [Python13Parser, Python13ParserSingle, Python14Parser, Python14Parser
                         nodes[n] = doc
 
 print(r"""import sys
+import types
 
 import spark_parser
 import uncompyle6.parser
@@ -69,9 +70,19 @@ import uncompyle6.scanner
 
 import rejig.syntaxtree
 
+asts = {}
+
+def ast(code, pyversion=None, debug_parser=spark_parser.DEFAULT_DEBUG):
+    if not isinstance(code, types.CodeType):
+        code = code.__code__
+    got = asts.get(code.co_code, None)
+    if got is None:
+        got = asts[code.co_code] = BytecodeWalker(code, pyversion=pyversion, debug_parser=debug_parser).ast()
+    return got
+
 class BytecodeWalker(object):
-    def __init__(self, function, pyversion=None, debug_parser=spark_parser.DEFAULT_DEBUG):
-        self.code = function.__code__
+    def __init__(self, code, pyversion=None, debug_parser=spark_parser.DEFAULT_DEBUG):
+        self.code = code
         self.sourcepath = self.code.co_filename
         try:
             self.linestart = self.code.co_firstlineno - 1
