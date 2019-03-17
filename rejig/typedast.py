@@ -28,21 +28,21 @@ class Action(object):
         return "<Action {0} from {1}>".format(repr(self.ast), repr(self.argtypes))
 
     def __str__(self):
-        return str(self.ast.ast) + "\n" + _typeargs(list(self.argtypes.items()) + [("", self.ast.type)])
+        return str(self.ast.ast) + "\n" + _typeargs(list(self.argtypes.items()) + [("", self.ast.rettype)])
 
 class AST(object):
-    def __init__(self, ast, type):
+    def __init__(self, ast, rettype):
         self.ast = ast
-        self.type = type
+        self.rettype = rettype
 
     def __eq__(self, other):
-        return type(self) == type(other) and self.ast == other.ast and self.type == other.type
+        return type(self) == type(other) and self.ast == other.ast and self.rettype == other.rettype
 
     def __ne__(self, other):
         return not self.__eq__(other)
 
     def __hash__(self):
-        return hash((type(self), self.ast, self.type))
+        return hash((type(self), self.ast, self.rettype))
 
     @property
     def id(self):
@@ -64,24 +64,11 @@ class AST(object):
         return self.ast.errline()
 
     def __repr__(self):
-        return "<{0} of type {1}>".format(repr(self.ast), repr(self.type))
+        return "<{0} of type {1}>".format(repr(self.ast), repr(self.rettype))
 
     def __str__(self):
         value = str(self.ast)
-        return "{0} of type {1}".format(value, _typestr(self.type, " " * (len(value) + 9)))
-    
-class Call(AST):
-    def __init__(self, ast, typedargs, type):
-        super(Call, self).__init__(ast, type)
-        self.typedargs = typedargs
-
-    @property
-    def fcn(self):
-        return self.ast.fcn
-
-    @property
-    def args(self):
-        return self.ast.args
+        return "{0} of type {1}".format(value, _typestr(self.rettype, " " * (len(value) + 9)))
 
 class Const(AST):
     @property
@@ -92,23 +79,46 @@ class Name(AST):
     @property
     def name(self):
         return self.ast.name
+    
+class Call(AST):
+    def __init__(self, ast, rettype, typedfcn, typedargs):
+        super(Call, self).__init__(ast, rettype)
+        self.typedfcn = typedfcn
+        self.typedargs = typedargs
 
-# class Def(AST):
-#     def __init__(self, ast, type, argtypes):
-#         super(Def, self).__init__(ast, type)
-#         self.argtypes = argtypes
+    def __eq__(self, other):
+        return type(self) == type(other) and self.ast == other.ast and self.rettype == other.rettype and self.typedfcn == other.typedfcn and self.typedargs == other.typedargs
 
-#     @property
-#     def argnames(self):
-#         return self.ast.argnames
+    def __hash__(self):
+        return hash((type(self), self.ast, self.rettype, self.typedfcn, self.typedargs))
 
-#     @property
-#     def defaults(self):
-#         return self.ast.defaults
+    @property
+    def fcn(self):
+        return self.ast.fcn
 
-#     @property
-#     def body(self):
-#         return self.ast.body
+    @property
+    def args(self):
+        return self.ast.args
+
+class Def(AST):
+    def __init__(self, ast, rettype, argtypes, typedbody):
+        super(Def, self).__init__(ast, rettype)
+        self.argtypes = argtypes
+        self.typedbody = typedbody
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self.ast == other.ast and self.rettype == other.rettype and self.argtypes == other.argtypes and self.typedbody == other.typedbody
+
+    def __hash__(self):
+        return hash((type(self), self.ast, self.rettype, self.argtypes, self.typedbody))
+
+    @property
+    def argnames(self):
+        return self.ast.argnames
+
+    @property
+    def body(self):
+        return self.ast.body
 
 def numerical(*types):
     assert all(isinstance(x, numpy.dtype) for x in types)

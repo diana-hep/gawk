@@ -24,7 +24,9 @@ print()
 def testme(a):
     return a.size
 
-print(rejig.typing.typify(rejig.pybytecode.ast(testme), {"a": awkward.type.ArrayType(10, numpy.dtype(int))}))
+t = awkward.type.ArrayType(10, numpy.dtype(int))
+# t.takes = numpy.inf
+print(rejig.typing.typify(rejig.pybytecode.ast(testme), {"a": t}))
 print()
 
 def testme(a):

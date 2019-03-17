@@ -1,4 +1,5 @@
 import collections
+import numbers
 
 import numpy
 
@@ -26,11 +27,20 @@ class Add(Function):
     def typedargs(self, typedargs, kwargs):
         return collections.OrderedDict((str(i), x) for i, x in enumerate(typedargs))
 
-    def infer(self, call, typedargs, symboltable):
-        if all(isinstance(x.type, numpy.dtype) and issubclass(x.type.type, numpy.number) for x in typedargs):
-            return rejig.typedast.Call(call, typedargs, rejig.typedast.numerical(*[x.type for x in typedargs]))
+    def infer(self, call, typedfcn, typedargs, symboltable):
+        if all(isinstance(x.rettype, numpy.dtype) and issubclass(x.rettype.type, numpy.number) for x in typedargs):
+            return rejig.typedast.Call(call, rejig.typedast.numerical(*[x.rettype for x in typedargs]), typedfcn, typedargs)
         else:
             return None
+
+    def interpreted(self, typedast):
+        return lambda *args: sum(args)
+
+    def vectorized(self, typedast):
+        return numpy.add
+
+    def fused(self, typedast):
+        return lambda *args: "(" + " + ".join(args) + ")"
 
 root["+"] = Add()
 
@@ -53,16 +63,26 @@ class ArrayMap(Function):
     def typedargs(self, typedargs, kwargs):
         return collections.OrderedDict([("mapper", typedargs[0])])
 
-    def infer(self, call, typedargs, symboltable):
+    def infer(self, call, typedfcn, typedargs, symboltable):
         if len(typedargs) == 1 and isinstance(typedargs[0], rejig.syntaxtree.Def) and len(typedargs[0].argnames) == 1:
             scope = rejig.typing.SymbolTable(symboltable)
-            scope[typedargs[0].argnames[0]] = self.array.type.to
+            scope[typedargs[0].argnames[0]] = self.array.rettype.to
             typedbody = rejig.typing.typifystep(typedargs[0].body, scope)
-            out = awkward.type.ArrayType(self.array.type.takes, typedbody.type)
-            return rejig.typedast.Call(call, (typedbody,), out)
+            rettype = awkward.type.ArrayType(self.array.rettype.takes, typedbody.rettype)
+            defn = rejig.typedast.Def(call.args[0], typedbody.rettype, (self.array.rettype.to,), typedbody)
+            return rejig.typedast.Call(call, rettype, typedfcn, (defn,))
 
         else:
             return None
+
+    def interpreted(self, typedast):
+        return lambda array, fcn: [fcn(x) for x in array]
+
+    def vectorized(self, typedast):
+        return lambda array, fcn: fcn(array)
+
+    def fused(self, typedast):
+        return lambda array, fcn: fcn(array)
 
 class Attrib(Function):
     def __str__(self):
@@ -74,17 +94,26 @@ class Attrib(Function):
     def typedargs(self, typedargs, kwargs):
         return collections.OrderedDict([("object", typedargs[0]), ("attribute", typedargs[1])])
 
-    def infer(self, call, typedargs, symboltable):
-        if isinstance(typedargs[0].type, awkward.type.ArrayType) and typedargs[1] == "size":
-            if typedargs[0].type.takes == numpy.inf:
-                return rejig.typedast.Call(call, typedargs, numpy.dtype(numpy.int64))
+    def infer(self, call, typedfcn, typedargs, symboltable):
+        if isinstance(typedargs[0].rettype, awkward.type.ArrayType) and typedargs[1] == "size":
+            if typedargs[0].rettype.takes == numpy.inf:
+                return rejig.typedast.Call(call, numpy.dtype(numpy.int64), typedfcn, typedargs)
             else:
-                return rejig.typedast.Const(rejig.syntaxtree.Const(typedargs[0].type.takes), numpy.dtype(numpy.int64))
+                return rejig.typedast.Const(rejig.syntaxtree.Const(typedargs[0].rettype.takes), numpy.dtype(numpy.int64))
 
-        elif isinstance(typedargs[0].type, awkward.type.ArrayType) and typedargs[1] == "map":
+        elif isinstance(typedargs[0].rettype, awkward.type.ArrayType) and typedargs[1] == "map":
             return ArrayMap(typedargs[0])
 
         else:
             return None
+
+    def interpreted(self, typedast):
+        return lambda obj, attr: getattr(obj, attr)
+
+    def vectorized(self, typedast):
+        raise TypeError
+
+    def fused(self, typedast):
+        raise TypeError
 
 root["."] = Attrib()

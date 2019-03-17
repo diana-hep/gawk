@@ -47,14 +47,9 @@ def _indent(x):
 def tofcn(fcnarg, ast, symboltable):
     if isinstance(fcnarg, int):
         argnames = list(ast.firstnames(fcnarg, symboltable))
-
         yes = [x for x in argnames if x.startswith("_")]
         no = [x for x in argnames if not x.startswith("_")]
-
-        yes = sorted(x[1:] for x in yes)
-        argnames = yes + no
-
-        return rejig.syntaxtree.Def(argnames, (), rejig.syntaxtree.Suite((rejig.syntaxtree.Call("return", ast, sourcepath=ast.sourcepath, linestart=ast.linestart),), sourcepath=ast.sourcepath, linestart=ast.linestart), sourcepath=ast.sourcepath, linestart=ast.linestart)
+        return rejig.syntaxtree.Def(sorted(x for x in yes) + no, (), rejig.syntaxtree.Suite((rejig.syntaxtree.Call("return", ast, sourcepath=ast.sourcepath, linestart=ast.linestart),), sourcepath=ast.sourcepath, linestart=ast.linestart), sourcepath=ast.sourcepath, linestart=ast.linestart)
 
     else:
         raise AssertionError(fcnarg)
@@ -95,7 +90,7 @@ def typifystep(ast, symboltable):
             else:
                 typedargs.append(typifystep(x, symboltable))
 
-        out = fcn.infer(ast, typedargs, symboltable)
+        out = fcn.infer(ast, fcn, typedargs, symboltable)
         if out is None:
             raise TypeError("wrong argument type(s){0}\n{1}\n{2}".format(ast.errline(), _indent("function: " + str(fcn)), _indent(rejig.typedast._typeargs(fcn.typedargs(typedargs, ()).items()))))
         else:
