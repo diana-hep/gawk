@@ -4,6 +4,7 @@ import numpy
 
 import awkward.type
 
+import rejig.syntaxtree
 import rejig.typedast
 import rejig.typing
 
@@ -33,7 +34,11 @@ class Attrib(Function):
 
     def infer(self, call, args, symboltable):
         if isinstance(args[0].type, awkward.type.ArrayType) and args[1] == "size":
-            return rejig.typedast.typify(call, numpy.dtype(numpy.int64))
+            if args[0].type.takes == numpy.inf:
+                return rejig.typedast.typify(call, numpy.dtype(numpy.int64))
+            else:
+                return rejig.typedast.typify(rejig.syntaxtree.Const(args[0].type.takes), numpy.dtype(numpy.int64))
+
         else:
             return None
 
