@@ -11,10 +11,13 @@ def _typestr(x, indent):
         return str(x)
 
 def _typeargs(pairs):
-    width = max(len(x) for x, y in pairs)
-    formatter = "{0:>%ds}: {1}" % width
-    indent = " " * width
-    return "\n".join(formatter.format(n, _typestr(x, indent)) for n, x in pairs)
+    if len(pairs) == 0:
+        return "(no arguments)"
+    else:
+        width = max([len(x) for x, y in pairs])
+        formatter = "{0:>%ds}: {1}" % width
+        indent = " " * width
+        return "\n".join(formatter.format(n, _typestr(x, indent)) for n, x in pairs)
 
 class Action(object):
     def __init__(self, ast, argtypes):

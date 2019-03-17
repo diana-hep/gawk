@@ -53,14 +53,17 @@ def typifystep(ast, symboltable):
         else:
             fcn = typifystep(ast.fcn, symboltable)
 
-        typedargs = [x if isinstance(x, str) else typifystep(x, symboltable) for x in ast.args]
-
         if not isinstance(fcn, rejig.library.Function):
             raise TypeError("not a function: {0}".format(str(fcn)))
 
+        if not fcn.numargs(ast.args):
+            raise TypeError("wrong number of arguments{0}\nfunction: {1}\n{2}".format(ast.errline(), str(fcn), rejig.typedast._typeargs([(str(i), x) for i, x in enumerate(ast.args)])))
+
+        typedargs = [x if isinstance(x, str) else typifystep(x, symboltable) for x in ast.args]
+
         out = fcn.infer(ast, typedargs, symboltable)
         if out is None:
-            raise TypeError("illegal arguments{0}\n{1}".format(ast.errline(), rejig.typedast._typeargs(fcn.args(typedargs, ()).items())))
+            raise TypeError("illegal arguments{0}\nfunction: {1}\n{2}".format(ast.errline(), str(fcn), rejig.typedast._typeargs(fcn.typedargs(typedargs, ()).items())))
         else:
             return out
 

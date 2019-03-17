@@ -17,7 +17,13 @@ class Function(object):
         return None
 
 class Add(Function):
-    def args(self, typedargs, kwargs):
+    def __str__(self):
+        return "+"
+
+    def numargs(self, args):
+        return len(args) >= 2
+
+    def typedargs(self, typedargs, kwargs):
         return collections.OrderedDict((str(i), x) for i, x in enumerate(typedargs))
 
     def infer(self, call, typedargs, symboltable):
@@ -32,8 +38,14 @@ class ArrayMap(Function):
     def __init__(self, array):
         self.array = array
 
-    def args(self, typedargs, kwargs):
-        raise NotImplementedError
+    def __str__(self):
+        return ".map"
+
+    def numargs(self, args):
+        return len(args) == 1
+
+    def typedargs(self, typedargs, kwargs):
+        return collections.OrderedDict([("mapper", typedargs[0])])
 
     def infer(self, call, typedargs, symboltable):
         if len(typedargs) == 1 and isinstance(typedargs[0], rejig.syntaxtree.Def) and len(typedargs[0].argnames) == 1:
@@ -47,7 +59,13 @@ class ArrayMap(Function):
             return None
 
 class Attrib(Function):
-    def args(self, typedargs, kwargs):
+    def __str__(self):
+        return "."
+
+    def numargs(self, args):
+        return len(args) == 2
+
+    def typedargs(self, typedargs, kwargs):
         return collections.OrderedDict([("object", typedargs[0]), ("attribute", typedargs[1])])
 
     def infer(self, call, typedargs, symboltable):

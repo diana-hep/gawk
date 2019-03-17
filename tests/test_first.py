@@ -38,3 +38,11 @@ def testme(a):
 
 print(rejig.typing.typify(rejig.pybytecode.ast(testme), {"a": awkward.type.ArrayType(10, numpy.dtype(int))}))
 print()
+
+def testme(a):
+    return a.map(x + 3.14)
+
+print(rejig.pybytecode.ast(testme))
+
+# print(rejig.typing.typify(rejig.pybytecode.ast(testme), {"a": awkward.type.ArrayType(10, numpy.dtype(int))}))
+# print()
