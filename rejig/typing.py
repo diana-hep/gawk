@@ -46,7 +46,14 @@ def _indent(x):
 
 def tofcn(fcnarg, ast, symboltable):
     if isinstance(fcnarg, int):
-        argnames = tuple(ast.firstnames(fcnarg, symboltable))
+        argnames = list(ast.firstnames(fcnarg, symboltable))
+
+        yes = [x for x in argnames if x.startswith("_")]
+        no = [x for x in argnames if not x.startswith("_")]
+
+        yes = sorted(x[1:] for x in yes)
+        argnames = yes + no
+
         return rejig.syntaxtree.Def(argnames, (), rejig.syntaxtree.Suite((rejig.syntaxtree.Call("return", ast, sourcepath=ast.sourcepath, linestart=ast.linestart),), sourcepath=ast.sourcepath, linestart=ast.linestart), sourcepath=ast.sourcepath, linestart=ast.linestart)
 
     else:
