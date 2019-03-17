@@ -17,6 +17,9 @@ class Function(object):
     def fcnarg(self, i):
         return None
 
+    def isnumexpr(self):
+        return False
+
 class Add(Function):
     def __str__(self):
         return "+"
@@ -33,14 +36,8 @@ class Add(Function):
         else:
             return None
 
-    def interpreted(self, typedast):
-        return lambda *args: sum(args)
-
-    def vectorized(self, typedast):
-        return numpy.add
-
-    def fused(self, typedast):
-        return lambda *args: "(" + " + ".join(args) + ")"
+    def isnumexpr(self):
+        return True
 
 root["+"] = Add()
 
@@ -75,15 +72,6 @@ class ArrayMap(Function):
         else:
             return None
 
-    def interpreted(self, typedast):
-        return lambda array, fcn: [fcn(x) for x in array]
-
-    def vectorized(self, typedast):
-        return lambda array, fcn: fcn(array)
-
-    def fused(self, typedast):
-        return lambda array, fcn: fcn(array)
-
 class Attrib(Function):
     def __str__(self):
         return "."
@@ -106,14 +94,5 @@ class Attrib(Function):
 
         else:
             return None
-
-    def interpreted(self, typedast):
-        return lambda obj, attr: getattr(obj, attr)
-
-    def vectorized(self, typedast):
-        raise TypeError
-
-    def fused(self, typedast):
-        raise TypeError
 
 root["."] = Attrib()

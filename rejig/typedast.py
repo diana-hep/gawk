@@ -19,16 +19,22 @@ def _typeargs(pairs):
         indent = " " * width
         return "\n".join(formatter.format(n, _typestr(x, indent)) for n, x in pairs)
 
+def typecheck(value, type):
+    return True   # TODO
+
 class Action(object):
-    def __init__(self, ast, argtypes):
-        self.ast = ast
+    def __init__(self, typedast, argtypes):
+        self.typedast = typedast
         self.argtypes = argtypes
 
     def __repr__(self):
-        return "<Action {0} from {1}>".format(repr(self.ast), repr(self.argtypes))
+        return "<Action {0} from {1}>".format(repr(self.typedast), repr(self.argtypes))
 
     def __str__(self):
-        return str(self.ast.ast) + "\n" + _typeargs(list(self.argtypes.items()) + [("", self.ast.rettype)])
+        return str(self.typedast.ast) + "\n" + _typeargs(list(self.argtypes.items()) + [("", self.typedast.rettype)])
+
+    def aspython(self):
+        FIXME
 
 class AST(object):
     def __init__(self, ast, rettype):
@@ -64,11 +70,11 @@ class AST(object):
         return self.ast.errline()
 
     def __repr__(self):
-        return "<{0} of type {1}>".format(repr(self.ast), repr(self.rettype))
+        return "<{0} of rettype {1}>".format(repr(self.ast), repr(self.rettype))
 
     def __str__(self):
         value = str(self.ast)
-        return "{0} of type {1}".format(value, _typestr(self.rettype, " " * (len(value) + 9)))
+        return "{0} of rettype {1}".format(value, _typestr(self.rettype, " " * (len(value) + 9)))
 
 class Const(AST):
     @property
@@ -119,6 +125,17 @@ class Def(AST):
     @property
     def body(self):
         return self.ast.body
+
+    def apply(self, typedargs):
+        typedargs = dict(zip(self.argnames, typedargs))
+        def build(node):
+            if isinstance(node, Name):
+                return typedargs.get(node.name, node)
+            elif isinstance(node, Call):
+                return Call(node.ast, node.rettype, node.typedfcn, tuple(build(x) for x in node.typedargs))
+            else:
+                return node
+        return build(self.typedbody)
 
 def numerical(*types):
     assert all(isinstance(x, numpy.dtype) for x in types)
