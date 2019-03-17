@@ -27,6 +27,14 @@ class SymbolTable(MutableMapping):
     def __delitem__(self, symbol):
         del self.types[symbol]
 
+    def __contains__(self, symbol):
+        if symbol in self.types:
+            return True
+        elif self.parent is not None:
+            return self.parent.__contains__(symbol)
+        else:
+            return False
+
     def __iter__(self):
         return iter(self.types)
 
@@ -35,6 +43,14 @@ class SymbolTable(MutableMapping):
 
 def _indent(x):
     return "           " + x.replace("\n", "\n           ")
+
+def tofcn(fcnarg, ast, symboltable):
+    if isinstance(fcnarg, int):
+        argnames = tuple(ast.firstnames(fcnarg, symboltable))
+        return rejig.syntaxtree.Def(argnames, (), rejig.syntaxtree.Suite((rejig.syntaxtree.Call("return", ast, sourcepath=ast.sourcepath, linestart=ast.linestart),), sourcepath=ast.sourcepath, linestart=ast.linestart), sourcepath=ast.sourcepath, linestart=ast.linestart)
+
+    else:
+        raise AssertionError(fcnarg)
 
 def typifystep(ast, symboltable):
     import rejig.library
@@ -62,7 +78,15 @@ def typifystep(ast, symboltable):
         if not fcn.numargs(ast.args):
             raise TypeError("wrong number of arguments{0}\n{1}\n{2}".format(ast.errline(), _indent("function: " + str(fcn)), _indent(rejig.typedast._typeargs([(str(i), x) for i, x in enumerate(ast.args)]))))
 
-        typedargs = [x if isinstance(x, str) else typifystep(x, symboltable) for x in ast.args]
+        typedargs = []
+        for i, x in enumerate(ast.args):
+            fcnarg = fcn.fcnarg(i)
+            if fcnarg is not None and not isinstance(x, rejig.syntaxtree.Def):
+                typedargs.append(tofcn(fcnarg, x, symboltable))
+            elif isinstance(x, str):
+                typedargs.append(x)
+            else:
+                typedargs.append(typifystep(x, symboltable))
 
         out = fcn.infer(ast, typedargs, symboltable)
         if out is None:

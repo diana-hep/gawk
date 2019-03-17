@@ -13,7 +13,7 @@ root = rejig.typing.SymbolTable(None)
 root["pi"] = numpy.dtype(float)
 
 class Function(object):
-    def infer(self, call):
+    def fcnarg(self, i):
         return None
 
 class Add(Function):
@@ -40,6 +40,12 @@ class ArrayMap(Function):
 
     def __str__(self):
         return ".map"
+
+    def fcnarg(self, i):
+        if i == 0:
+            return 1
+        else:
+            return None
 
     def numargs(self, args):
         return len(args) == 1

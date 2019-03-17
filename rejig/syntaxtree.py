@@ -14,6 +14,27 @@ class AST(object):
     def __hash__(self):
         return hash((type(self), self.id, self.params))
 
+    def firstnames(self, num, exclude):
+        for x in self.params:
+            if num == 0:
+                break
+            if isinstance(x, Name) and (x.name.startswith("_") or x.name not in exclude):
+                yield x.name
+                num -= 1
+
+        if num > 0:
+            for x in self.params:
+                if isinstance(x, tuple):
+                    for y in x:
+                        if isinstance(y, AST):
+                            for z in y.firstnames(num, exclude):
+                                yield z
+                                num -= 1
+                elif isinstance(x, AST):
+                    for y in x.firstnames(num, exclude):
+                        yield y
+                        num -= 1
+                    
     def errline(self):
         if self.linestart is None:
             if self.sourcepath is None:
