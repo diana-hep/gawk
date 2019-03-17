@@ -28,10 +28,13 @@ print(rejig.typing.typify(rejig.pybytecode.ast(testme), {"a": awkward.type.Array
 print()
 
 def testme(a):
-    return a.map(lambda x: x**2)
+    return a.map(lambda x: x + 3.14)
 
-# def testme(a):
-#     return [x**2 for x in a]
+print(rejig.typing.typify(rejig.pybytecode.ast(testme), {"a": awkward.type.ArrayType(10, numpy.dtype(int))}))
+print()
+
+def testme(a):
+    return [x + 3.14 for x in a]
 
 print(rejig.typing.typify(rejig.pybytecode.ast(testme), {"a": awkward.type.ArrayType(10, numpy.dtype(int))}))
 print()

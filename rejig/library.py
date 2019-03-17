@@ -15,29 +15,50 @@ root["pi"] = numpy.dtype(float)
 class Function(object):
     def infer(self, call):
         return None
-        
-class Add(Function):
-    def args(self, args, kwargs):
-        return collections.OrderedDict((str(i), x) for i, x in enumerate(args))
 
-    def infer(self, call, args, symboltable):
-        if all(isinstance(x.type, numpy.dtype) and issubclass(x.type.type, numpy.number) for x in args):
-            return rejig.typedast.typify(call, rejig.typedast.numerical(*[x.type for x in args]))
+class Add(Function):
+    def args(self, typedargs, kwargs):
+        return collections.OrderedDict((str(i), x) for i, x in enumerate(typedargs))
+
+    def infer(self, call, typedargs, symboltable):
+        if all(isinstance(x.type, numpy.dtype) and issubclass(x.type.type, numpy.number) for x in typedargs):
+            return rejig.typedast.Call(call, typedargs, rejig.typedast.numerical(*[x.type for x in typedargs]))
         else:
             return None
 
 root["+"] = Add()
 
-class Attrib(Function):
-    def args(self, args, kwargs):
-        return collections.OrderedDict([("object", args[0]), ("attribute", args[1])])
+class ArrayMap(Function):
+    def __init__(self, array):
+        self.array = array
 
-    def infer(self, call, args, symboltable):
-        if isinstance(args[0].type, awkward.type.ArrayType) and args[1] == "size":
-            if args[0].type.takes == numpy.inf:
-                return rejig.typedast.typify(call, numpy.dtype(numpy.int64))
+    def args(self, typedargs, kwargs):
+        raise NotImplementedError
+
+    def infer(self, call, typedargs, symboltable):
+        if len(typedargs) == 1 and isinstance(typedargs[0], rejig.syntaxtree.Def) and len(typedargs[0].argnames) == 1:
+            scope = rejig.typing.SymbolTable(symboltable)
+            scope[typedargs[0].argnames[0]] = self.array.type.to
+            typedbody = rejig.typing.typifystep(typedargs[0].body, scope)
+            out = awkward.type.ArrayType(self.array.type.takes, typedbody.type)
+            return rejig.typedast.Call(call, (typedbody,), out)
+
+        else:
+            return None
+
+class Attrib(Function):
+    def args(self, typedargs, kwargs):
+        return collections.OrderedDict([("object", typedargs[0]), ("attribute", typedargs[1])])
+
+    def infer(self, call, typedargs, symboltable):
+        if isinstance(typedargs[0].type, awkward.type.ArrayType) and typedargs[1] == "size":
+            if typedargs[0].type.takes == numpy.inf:
+                return rejig.typedast.Call(call, typedargs, numpy.dtype(numpy.int64))
             else:
-                return rejig.typedast.typify(rejig.syntaxtree.Const(args[0].type.takes), numpy.dtype(numpy.int64))
+                return rejig.typedast.Const(rejig.syntaxtree.Const(typedargs[0].type.takes), numpy.dtype(numpy.int64))
+
+        elif isinstance(typedargs[0].type, awkward.type.ArrayType) and typedargs[1] == "map":
+            return ArrayMap(typedargs[0])
 
         else:
             return None

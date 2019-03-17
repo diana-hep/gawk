@@ -27,16 +27,6 @@ class Action(object):
     def __str__(self):
         return str(self.ast.ast) + "\n" + _typeargs(list(self.argtypes.items()) + [("", self.ast.type)])
 
-def typify(ast, type):
-    if isinstance(ast, rejig.syntaxtree.Call):
-        return Call(ast, type)
-    elif isinstance(ast, rejig.syntaxtree.Const):
-        return Const(ast, type)
-    elif isinstance(ast, rejig.syntaxtree.Name):
-        return Name(ast, type)
-    else:
-        raise AssertionError(type(ast))
-
 class AST(object):
     def __init__(self, ast, type):
         self.ast = ast
@@ -78,6 +68,10 @@ class AST(object):
         return "{0} of type {1}".format(value, _typestr(self.type, " " * (len(value) + 9)))
     
 class Call(AST):
+    def __init__(self, ast, typedargs, type):
+        super(Call, self).__init__(ast, type)
+        self.typedargs = typedargs
+
     @property
     def fcn(self):
         return self.ast.fcn
@@ -96,18 +90,22 @@ class Name(AST):
     def name(self):
         return self.ast.name
 
-class Def(AST):
-    @property
-    def argnames(self):
-        return self.ast.argnames
+# class Def(AST):
+#     def __init__(self, ast, type, argtypes):
+#         super(Def, self).__init__(ast, type)
+#         self.argtypes = argtypes
 
-    @property
-    def defaults(self):
-        return self.ast.defaults
+#     @property
+#     def argnames(self):
+#         return self.ast.argnames
 
-    @property
-    def body(self):
-        return self.ast.body
+#     @property
+#     def defaults(self):
+#         return self.ast.defaults
+
+#     @property
+#     def body(self):
+#         return self.ast.body
 
 def numerical(*types):
     assert all(isinstance(x, numpy.dtype) for x in types)
