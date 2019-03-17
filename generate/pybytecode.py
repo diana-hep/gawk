@@ -73,24 +73,15 @@ import uncompyle6.scanner
 
 import rejig.syntaxtree
 
-asts = {}
-
 def ast(code, pyversion=None, debug_parser=spark_parser.DEFAULT_DEBUG):
     if not isinstance(code, types.CodeType):
         code = code.__code__
-    got = asts.get(code.co_code, None)
-    if got is None:
-        got = asts[code.co_code] = BytecodeWalker(code, pyversion=pyversion, debug_parser=debug_parser).ast()
-    return got
+    return BytecodeWalker(code, pyversion=pyversion, debug_parser=debug_parser).ast()
 
 class BytecodeWalker(object):
     def __init__(self, code, pyversion=None, debug_parser=spark_parser.DEFAULT_DEBUG):
         self.code = code
         self.sourcepath = self.code.co_filename
-        try:
-            self.linestart = self.code.co_firstlineno - 1
-        except:
-            self.linestart = 0
 
         if pyversion is None:
             pyversion = float(sys.version[0:3])
@@ -103,9 +94,6 @@ class BytecodeWalker(object):
         scanner = uncompyle6.scanner.get_scanner(self.pyversion, is_pypy=("__pypy__" in sys.builtin_module_names))
         tokens, customize = scanner.ingest(self.code, code_objects={}, show_asm=self.debug_parser.get("asm", False))
         return self.n(uncompyle6.parser.parse(self.parser, tokens, customize))
-
-    def line(self, node):
-        return self.linestart + node.linestart
 
     def nameline(self, name, node):
         lineno = getattr(node, "linestart", None)
@@ -136,21 +124,21 @@ class BytecodeWalker(object):
             else:
                 return False, None
 
-    def make_const(self, obj):
-        if isinstance(obj, tuple):
-            return rejig.syntaxtree.Call("tuple", *[self.make_const(x) for x in obj])
-        elif isinstance(obj, list):
-            return rejig.syntaxtree.Call("list", *[self.make_const(x) for x in obj])
-        elif isinstance(obj, set):
-            return rejig.syntaxtree.Call("set", *[self.make_const(x) for x in obj])
-        elif isinstance(obj, dict):
+    def make_const(self, value, sourcepath, linestart):
+        if isinstance(value, tuple):
+            return rejig.syntaxtree.Call("tuple", *[self.make_const(x, sourcepath, linestart) for x in value], sourcepath=sourcepath, linestart=linestart)
+        elif isinstance(value, list):
+            return rejig.syntaxtree.Call("list", *[self.make_const(x, sourcepath, linestart) for x in value], sourcepath=sourcepath, linestart=linestart)
+        elif isinstance(value, set):
+            return rejig.syntaxtree.Call("set", *[self.make_const(x, sourcepath, linestart) for x in value], sourcepath=sourcepath, linestart=linestart)
+        elif isinstance(value, dict):
             pairs = []
-            for n, x in obj.items():
-                pairs.append(self.make_const(n))
-                pairs.append(self.make_const(x))
-            return rejig.syntaxtree.Call("dict", *pairs)
+            for n, x in value.items():
+                pairs.append(self.make_const(n, sourcepath, linestart))
+                pairs.append(self.make_const(x, sourcepath, linestart))
+            return rejig.syntaxtree.Call("dict", *pairs, sourcepath=sourcepath, linestart=linestart)
         else:
-            return rejig.syntaxtree.Const(obj)
+            return rejig.syntaxtree.Const(value, sourcepath=sourcepath, linestart=linestart)
 
     def make_suite(self, node):
         suite = []
@@ -158,7 +146,7 @@ class BytecodeWalker(object):
             suite.append(self.n(x))
             if isinstance(suite[-1], rejig.syntaxtree.Call) and suite[-1].fcn == "return":
                 break
-        return rejig.syntaxtree.Suite(tuple(suite))
+        return rejig.syntaxtree.Suite(tuple(suite), sourcepath=self.sourcepath, linestart=getattr(node, "linestart", None))
 
     def make_comp(self, source, loops):
         if len(loops) == 1:
@@ -178,11 +166,11 @@ class BytecodeWalker(object):
                 raise AssertionError(type(args))
 
             if pred is not None:
-                filterer = rejig.syntaxtree.Def(args, (), rejig.syntaxtree.Suite((pred,)))
-                src = rejig.syntaxtree.Call(rejig.syntaxtree.Call(".", src, "filter"), filterer)
+                filterer = rejig.syntaxtree.Def(args, (), rejig.syntaxtree.Suite((pred,), sourcepath=pred.sourcepath, linestart=pred.linestart), sourcepath=pred.sourcepath, linestart=pred.linestart)
+                src = rejig.syntaxtree.Call(rejig.syntaxtree.Call(".", src, "filter", sourcepath=pred.sourcepath, linestart=pred.linestart), filterer, sourcepath=pred.sourcepath, linestart=pred.linestart)
             
-            mapper = rejig.syntaxtree.Def(args, (), rejig.syntaxtree.Suite((next,)))
-            return rejig.syntaxtree.Call(rejig.syntaxtree.Call(".", src, "map"), mapper)
+            mapper = rejig.syntaxtree.Def(args, (), rejig.syntaxtree.Suite((next,), sourcepath=next.sourcepath, linestart=next.linestart), sourcepath=next.sourcepath, linestart=next.linestart)
+            return rejig.syntaxtree.Call(rejig.syntaxtree.Call(".", src, "map", sourcepath=next.sourcepath, linestart=next.linestart), mapper, sourcepath=next.sourcepath, linestart=next.linestart)
 
     def n(self, node):
         return getattr(self, "n_" + node.kind, self.default)(node)
