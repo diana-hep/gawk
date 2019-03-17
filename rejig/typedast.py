@@ -89,12 +89,25 @@ class Call(AST):
 class Const(AST):
     @property
     def value(self):
-        return self.params[0]
+        return self.ast.value
 
 class Name(AST):
     @property
     def name(self):
-        return self.params[0]
+        return self.ast.name
+
+class Def(AST):
+    @property
+    def argnames(self):
+        return self.ast.argnames
+
+    @property
+    def defaults(self):
+        return self.ast.defaults
+
+    @property
+    def body(self):
+        return self.ast.body
 
 def numerical(*types):
     assert all(isinstance(x, numpy.dtype) for x in types)

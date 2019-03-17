@@ -121,10 +121,10 @@ class BytecodeWalker(object):
                 raise AssertionError(type(args))
 
             if pred is not None:
-                filterer = rejig.syntaxtree.Def(args, (), rejig.syntaxtree.Suite((pred,), sourcepath=pred.sourcepath, linestart=pred.linestart), sourcepath=pred.sourcepath, linestart=pred.linestart)
+                filterer = rejig.syntaxtree.Def(args, (), rejig.syntaxtree.Suite((rejig.syntaxtree.Call("return", pred, sourcepath=pred.sourcepath, linestart=pred.linestart),), sourcepath=pred.sourcepath, linestart=pred.linestart), sourcepath=pred.sourcepath, linestart=pred.linestart)
                 src = rejig.syntaxtree.Call(rejig.syntaxtree.Call(".", src, "filter", sourcepath=pred.sourcepath, linestart=pred.linestart), filterer, sourcepath=pred.sourcepath, linestart=pred.linestart)
             
-            mapper = rejig.syntaxtree.Def(args, (), rejig.syntaxtree.Suite((next,), sourcepath=next.sourcepath, linestart=next.linestart), sourcepath=next.sourcepath, linestart=next.linestart)
+            mapper = rejig.syntaxtree.Def(args, (), rejig.syntaxtree.Suite((rejig.syntaxtree.Call("return", next, sourcepath=next.sourcepath, linestart=next.linestart),), sourcepath=next.sourcepath, linestart=next.linestart), sourcepath=next.sourcepath, linestart=next.linestart)
             return rejig.syntaxtree.Call(rejig.syntaxtree.Call(".", src, "map", sourcepath=next.sourcepath, linestart=next.linestart), mapper, sourcepath=next.sourcepath, linestart=next.linestart)
 
     def n(self, node):
