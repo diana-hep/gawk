@@ -33,8 +33,12 @@ class Call(AST):
     def __repr__(self):
         return "Call({0}, {1})".format(repr(self.fcn), ", ".join(repr(x) for x in self.args))
 
-    def dump(self):
-        return u"{0}({1})".format(self.fcn.dump() if isinstance(self.fcn, AST) else self.fcn, u", ".join(x.dump() if isinstance(x, AST) else repr(x) for x in self.args))
+    def __str__(self):
+        if self.fcn == ".":
+            return u"{0}.{1}".format(str(self.args[0]), self.args[1])
+        elif self.fcn == "[.]":
+            return u"{0}[{1}]".format(str(self.args[0]), u", ".join(str(x) for x in self.args[1:]))
+        return u"{0}({1})".format(str(self.fcn) if isinstance(self.fcn, AST) else self.fcn, u", ".join(str(x) if isinstance(x, AST) else repr(x) for x in self.args))
 
 class CallKeyword(AST):
     def __init__(self, fcn, args, kwargs, sourcepath=None, linestart=None):
@@ -55,8 +59,8 @@ class CallKeyword(AST):
     def __repr__(self):
         return "CallKeyword({0}, ({1}), ({2}))".format(repr(self.fcn), " ".join(repr(x) + "," for x in self.args), " ".join(repr(x) + "," for x in self.kwargs))
 
-    def dump(self):
-        return u"{0}({1}, {2})".format(self.fcn.dump() if isinstance(self.fcn, AST) else self.fcn, u", ".join(x.dump() if isinstance(x, AST) else repr(x) for x in self.args), u", ".join("{0}={1}".format(n, x.dump()) if isinstance(x, AST) else repr(x) for n, x in self.kwargs))
+    def __str__(self):
+        return u"{0}({1}, {2})".format(str(self.fcn), u", ".join(str(x) if isinstance(x, AST) else repr(x) for x in self.args), u", ".join("{0}={1}".format(n, str(x) if isinstance(x, AST) else repr(x)) for n, x in self.kwargs))
 
 class Const(AST):
     def __init__(self, value, sourcepath=None, linestart=None):
@@ -69,7 +73,7 @@ class Const(AST):
     def __repr__(self):
         return "Const({0})".format(repr(self.value))
 
-    def dump(self):
+    def __str__(self):
         return repr(self.value)
 
 class Name(AST):
@@ -83,7 +87,7 @@ class Name(AST):
     def __repr__(self):
         return "Name({0})".format(repr(self.name))
 
-    def dump(self):
+    def __str__(self):
         return self.name
 
 class Def(AST):
@@ -105,7 +109,7 @@ class Def(AST):
     def __repr__(self):
         return "Def(({0}), ({1}), ({2}))".format(" ".join(repr(x) + "," for x in self.argnames), " ".join(repr(x) + "," for x in self.defaults), " ".join(repr(x) + "," for x in self.body))
 
-    def dump(self):
+    def __str__(self):
         if len(self.defaults) == 0:
             args = self.argnames
             kwargs = ()
@@ -113,9 +117,9 @@ class Def(AST):
             args = self.argnames[:-len(self.defaults)]
             kwargs = tuple(zip(self.argnames[-len(self.defaults):], self.defaults))
         if len(kwargs) == 0:
-            return u"({0}) \u2192 {1}".format(u", ".join(args), self.body.dump())
+            return u"({0}) \u2192 {1}".format(u", ".join(args), str(self.body))
         else:
-            return u"({0}, {1}) \u2192 {2}".format(u", ".join(args), u", ".join("{0}={1}".format(n, x) for n, x in kwargs), self.body.dump())
+            return u"({0}, {1}) \u2192 {2}".format(u", ".join(args), u", ".join("{0}={1}".format(n, x) for n, x in kwargs), str(self.body))
 
 class Suite(AST):
     def __init__(self, body, sourcepath=None, linestart=None):
@@ -128,8 +132,8 @@ class Suite(AST):
     def __repr__(self):
         return "Suite(({0}))".format(" ".join(repr(x) + "," for x in self.body))
 
-    def dump(self):
-        return u"{{{0}}}".format(u"; ".join(x.dump() for x in self.body))
+    def __str__(self):
+        return u"{{{0}}}".format(u"; ".join(str(x) for x in self.body))
 
 class Assign(AST):
     def __init__(self, targets, expr, sourcepath=None, linestart=None):
@@ -146,8 +150,8 @@ class Assign(AST):
     def __repr__(self):
         return "Assign(({0}), {1})".format(" ".join(repr(x) + "," for x in self.targets), repr(self.expr))
 
-    def dump(self):
-        return u"{0} := {1}".format(u" := ".join(x.dump() for x in self.targets), self.expr.dump())
+    def __str__(self):
+        return u"{0} := {1}".format(u" := ".join(str(x) for x in self.targets), str(self.expr))
 
 class Unpack(AST):
     def __init__(self, subtargets, sourcepath=None, linestart=None):
@@ -160,5 +164,5 @@ class Unpack(AST):
     def __repr__(self):
         return "Unpack(({0}))".format(" ".join(repr(x) + "," for x in self.subtargets))
 
-    def dump(self):
-        return u"({0})".format(u", ".join(x.dump() for x in self.subtargets))
+    def __str__(self):
+        return u"({0})".format(u", ".join(str(x) for x in self.subtargets))
