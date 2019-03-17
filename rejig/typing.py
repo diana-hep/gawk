@@ -33,6 +33,9 @@ class SymbolTable(MutableMapping):
     def __len__(self):
         return len(self.types)
 
+def _indent(x):
+    return "           " + x.replace("\n", "\n           ")
+
 def typifystep(ast, symboltable):
     import rejig.library
 
@@ -54,16 +57,16 @@ def typifystep(ast, symboltable):
             fcn = typifystep(ast.fcn, symboltable)
 
         if not isinstance(fcn, rejig.library.Function):
-            raise TypeError("not a function: {0}".format(str(fcn)))
+            raise TypeError("not a function{0}\n{1}".format(ast.errline(), _indent(str(fcn))))
 
         if not fcn.numargs(ast.args):
-            raise TypeError("wrong number of arguments{0}\nfunction: {1}\n{2}".format(ast.errline(), str(fcn), rejig.typedast._typeargs([(str(i), x) for i, x in enumerate(ast.args)])))
+            raise TypeError("wrong number of arguments{0}\n{1}\n{2}".format(ast.errline(), _indent("function: " + str(fcn)), _indent(rejig.typedast._typeargs([(str(i), x) for i, x in enumerate(ast.args)]))))
 
         typedargs = [x if isinstance(x, str) else typifystep(x, symboltable) for x in ast.args]
 
         out = fcn.infer(ast, typedargs, symboltable)
         if out is None:
-            raise TypeError("illegal arguments{0}\nfunction: {1}\n{2}".format(ast.errline(), str(fcn), rejig.typedast._typeargs(fcn.typedargs(typedargs, ()).items())))
+            raise TypeError("wrong argument type(s){0}\n{1}\n{2}".format(ast.errline(), _indent("function: " + str(fcn)), _indent(rejig.typedast._typeargs(fcn.typedargs(typedargs, ()).items()))))
         else:
             return out
 
@@ -72,7 +75,7 @@ def typifystep(ast, symboltable):
 
     elif isinstance(ast, rejig.syntaxtree.Name):
         if symboltable[ast.name] is None:
-            raise TypeError("unrecognized name: {0}".format(repr(ast.name)))
+            raise TypeError("unrecognized name{0}\n{1}".format(ast.errline(), _indent("name: " + str(ast.name))))
         else:
             return rejig.typedast.Name(ast, symboltable[ast.name])
 
