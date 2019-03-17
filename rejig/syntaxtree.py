@@ -14,6 +14,18 @@ class AST(object):
     def __hash__(self):
         return hash((type(self), self.id, self.params))
 
+    def errline(self):
+        if self.linestart is None:
+            if self.sourcepath is None:
+                return ""
+            else:
+                return " somewhere in " + self.sourcepath
+        else:
+            if self.sourcepath is None:
+                return " on line {0}".format(self.linestart)
+            else:
+                return " on line {0} of {1}".format(self.linestart, self.sourcepath)
+
 class Call(AST):
     def __init__(self, fcn, *args, sourcepath=None, linestart=None):
         super(Call, self).__init__(fcn, *args, sourcepath=sourcepath, linestart=linestart)

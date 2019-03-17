@@ -20,8 +20,7 @@ def typifystep(ast, symboltable):
 
         typ = fcn.infer(args)
         if typ is None:
-            width = max(len(x) for x in fcn.args(args, ())) + 1
-            raise TypeError("illegal arguments: ".format(rejig.typedast._typeargs(fcn.args(args), width)))
+            raise TypeError("illegal arguments{0}\n{1}".format(ast.errline(), rejig.typedast._typeargs(fcn.args(args, ()).items())))
         else:
             return rejig.typedast.typify(ast, typ)
 
@@ -51,21 +50,3 @@ def typify(ast, argtypes):
 
     else:
         raise AssertionError(type(ast))
-
-
-
-
-
-################################################################################
-
-import rejig.pybytecode
-import importlib
-importlib.reload(rejig.syntaxtree)
-importlib.reload(rejig.typedast)
-importlib.reload(rejig.library)
-
-def testme(x, y):
-    return x + y + 3.14
-
-q = typify(rejig.pybytecode.ast(testme), {"x": numpy.dtype(int), "y": numpy.dtype(float)})
-print(q)

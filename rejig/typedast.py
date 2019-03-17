@@ -10,10 +10,11 @@ def _typestr(x, indent):
     else:
         return str(x)
 
-def _typeargs(pairs, width):
-    formatter = "{0:>%ds} {1}\n" % width
+def _typeargs(pairs):
+    width = max(len(x) for x, y in pairs)
+    formatter = "{0:>%ds}: {1}" % width
     indent = " " * width
-    return "".join(formatter.format(n + ":", _typestr(x, indent)) for n, x in pairs)
+    return "\n".join(formatter.format(n, _typestr(x, indent)) for n, x in pairs)
 
 class Action(object):
     def __init__(self, ast, argtypes):
@@ -24,10 +25,7 @@ class Action(object):
         return "<Action {0} from {1}>".format(repr(self.ast), repr(self.argtypes))
 
     def __str__(self):
-        width = max(3, max(len(x) for x in self.argtypes) + 1)
-        formatter = "{0:>%ds} {1}\n" % width
-        indent = " " * width
-        return str(self.ast.ast) + "\n" + _typeargs(self.argtypes.items(), width) + formatter.format("-->", _typestr(self.ast.type, indent))[:-1]
+        return str(self.ast.ast) + "\n" + _typeargs(list(self.argtypes.items()) + [("", self.ast.type)])
 
 def typify(ast, type):
     if isinstance(ast, rejig.syntaxtree.Call):
@@ -69,11 +67,15 @@ class AST(object):
     def linestart(self):
         return self.ast.linestart
 
+    def errline(self):
+        return self.ast.errline()
+
     def __repr__(self):
         return "<{0} of type {1}>".format(repr(self.ast), repr(self.type))
 
     def __str__(self):
-        return "value: {0}\n type: {1}".format(str(self.ast), _typestr(self.type, "       "))
+        value = str(self.ast)
+        return "{0} of type {1}".format(value, _typestr(self.type, " " * (len(value) + 9)))
     
 class Call(AST):
     @property

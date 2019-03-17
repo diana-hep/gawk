@@ -45,7 +45,7 @@ class Function(object):
 
 class Add(Function):
     def args(self, args, kwargs):
-        return collections.OrderedDict((str(i), x) for i in enumerate(args))
+        return collections.OrderedDict((str(i), x) for i, x in enumerate(args))
 
     def infer(self, args):
         if all(isinstance(x.type, numpy.dtype) and issubclass(x.type.type, numpy.number) for x in args):

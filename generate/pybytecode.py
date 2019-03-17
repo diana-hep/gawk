@@ -73,10 +73,10 @@ import uncompyle6.scanner
 
 import rejig.syntaxtree
 
-def ast(code, pyversion=None, debug_parser=spark_parser.DEFAULT_DEBUG):
+def ast(code, pyversion=None, debug_parser=spark_parser.DEFAULT_DEBUG, linestart=None):
     if not isinstance(code, types.CodeType):
         code = code.__code__
-    return BytecodeWalker(code, pyversion=pyversion, debug_parser=debug_parser).ast()
+    return BytecodeWalker(code, pyversion=pyversion, debug_parser=debug_parser).ast(linestart=linestart)
 
 class BytecodeWalker(object):
     def __init__(self, code, pyversion=None, debug_parser=spark_parser.DEFAULT_DEBUG):
@@ -90,13 +90,34 @@ class BytecodeWalker(object):
         self.debug_parser = debug_parser
         self.parser = uncompyle6.parser.get_python_parser(self.pyversion, debug_parser=dict(self.debug_parser), compile_mode="exec", is_pypy=("__pypy__" in sys.builtin_module_names))
 
-    def ast(self):
+    def ast(self, linestart=None):
         scanner = uncompyle6.scanner.get_scanner(self.pyversion, is_pypy=("__pypy__" in sys.builtin_module_names))
         tokens, customize = scanner.ingest(self.code, code_objects={}, show_asm=self.debug_parser.get("asm", False))
-        return self.n(uncompyle6.parser.parse(self.parser, tokens, customize))
+        parsed = uncompyle6.parser.parse(self.parser, tokens, customize)
+
+        def pullup(node):
+            if isinstance(node, uncompyle6.parsers.treenode.SyntaxTree):
+                node.linestart = getattr(node, "linestart", None)
+                for x in node:
+                    if node.linestart is None:
+                        node.linestart = pullup(x)
+                    else:
+                        pullup(x)
+            return node.linestart
+        pullup(parsed)
+
+        def pushdown(node, linestart):
+            if node.linestart is None:
+                node.linestart = linestart
+            if isinstance(node, uncompyle6.parsers.treenode.SyntaxTree):
+                for x in node:
+                    pushdown(x, node.linestart)
+        pushdown(parsed, linestart)
+
+        return self.n(parsed)
 
     def nameline(self, name, node):
-        lineno = getattr(node, "linestart", None)
+        lineno = node.linestart
         if lineno is None:
             if self.sourcepath is None:
                 return name
@@ -146,7 +167,7 @@ class BytecodeWalker(object):
             suite.append(self.n(x))
             if isinstance(suite[-1], rejig.syntaxtree.Call) and suite[-1].fcn == "return":
                 break
-        return rejig.syntaxtree.Suite(tuple(suite), sourcepath=self.sourcepath, linestart=getattr(node, "linestart", None))
+        return rejig.syntaxtree.Suite(tuple(suite), sourcepath=self.sourcepath, linestart=node.linestart)
 
     def make_comp(self, source, loops):
         if len(loops) == 1:
