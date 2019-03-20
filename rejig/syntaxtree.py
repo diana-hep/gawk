@@ -1,9 +1,11 @@
 class AST(object):
-    def __init__(self, id, *params, sourcepath=None, linestart=None):
+    def __init__(self, id, *params, **options):
         self.id = id
         self.params = params
-        self.sourcepath = sourcepath
-        self.linestart = linestart
+        self.sourcepath = options.pop("sourcepath", None)
+        self.linestart = options.pop("linestart", None)
+        if len(options) != 0:
+            raise TypeError("unrecognized keyword argument")
 
     def __eq__(self, other):
         return type(self) == type(other) and self.id == other.id and self.params == other.params
@@ -48,8 +50,8 @@ class AST(object):
                 return " on line {0} of {1}".format(self.linestart, self.sourcepath)
 
 class Call(AST):
-    def __init__(self, fcn, *args, sourcepath=None, linestart=None):
-        super(Call, self).__init__(fcn, *args, sourcepath=sourcepath, linestart=linestart)
+    def __init__(self, fcn, *args, **options):
+        super(Call, self).__init__(fcn, *args, **options)
 
     @property
     def fcn(self):
@@ -74,8 +76,8 @@ class Call(AST):
         return "{0}({1})".format(str(self.fcn) if isinstance(self.fcn, AST) else self.fcn, ", ".join(str(x) if isinstance(x, AST) else repr(x) for x in self.args))
 
 class CallKeyword(AST):
-    def __init__(self, fcn, args, kwargs, sourcepath=None, linestart=None):
-        super(CallKeyword, self).__init__(fcn, args, sorted(kwargs, key=lambda x: x[0]), sourcepath=sourcepath, linestart=linestart)
+    def __init__(self, fcn, args, kwargs, **options):
+        super(CallKeyword, self).__init__(fcn, args, sorted(kwargs, key=lambda x: x[0]), **options)
 
     @property
     def fcn(self):
@@ -96,8 +98,8 @@ class CallKeyword(AST):
         return "{0}({1}, {2})".format(str(self.fcn), ", ".join(str(x) if isinstance(x, AST) else repr(x) for x in self.args), ", ".join("{0}={1}".format(n, str(x) if isinstance(x, AST) else repr(x)) for n, x in self.kwargs))
 
 class Const(AST):
-    def __init__(self, value, sourcepath=None, linestart=None):
-        super(Const, self).__init__(Const, value, sourcepath=sourcepath, linestart=linestart)
+    def __init__(self, value, **options):
+        super(Const, self).__init__(Const, value, **options)
 
     @property
     def value(self):
@@ -110,8 +112,8 @@ class Const(AST):
         return repr(self.value)
 
 class Name(AST):
-    def __init__(self, name, sourcepath=None, linestart=None):
-        super(Name, self).__init__(Name, name, sourcepath=sourcepath, linestart=linestart)
+    def __init__(self, name, **options):
+        super(Name, self).__init__(Name, name, **options)
 
     @property
     def name(self):
@@ -124,8 +126,8 @@ class Name(AST):
         return self.name
 
 class Def(AST):
-    def __init__(self, argnames, defaults, body, sourcepath=None, linestart=None):
-        super(Def, self).__init__(Def, argnames, defaults, body, sourcepath=sourcepath, linestart=linestart)
+    def __init__(self, argnames, defaults, body, **options):
+        super(Def, self).__init__(Def, argnames, defaults, body, **options)
 
     @property
     def argnames(self):
@@ -155,8 +157,8 @@ class Def(AST):
             return "({0}, {1}) -> {2}".format(", ".join(args), ", ".join("{0}={1}".format(n, x) for n, x in kwargs), str(self.body))
 
 class Suite(AST):
-    def __init__(self, body, sourcepath=None, linestart=None):
-        super(Suite, self).__init__(Suite, *body, sourcepath=sourcepath, linestart=linestart)
+    def __init__(self, body, **options):
+        super(Suite, self).__init__(Suite, *body, **options)
 
     @property
     def body(self):
@@ -169,8 +171,8 @@ class Suite(AST):
         return "{{{0}}}".format("; ".join(str(x) for x in self.body))
 
 class Assign(AST):
-    def __init__(self, targets, expr, sourcepath=None, linestart=None):
-        super(Assign, self).__init__(Assign, targets, expr, sourcepath=sourcepath, linestart=linestart)
+    def __init__(self, targets, expr, **options):
+        super(Assign, self).__init__(Assign, targets, expr, **options)
 
     @property
     def targets(self):
@@ -187,8 +189,8 @@ class Assign(AST):
         return "{0} := {1}".format(" := ".join(str(x) for x in self.targets), str(self.expr))
 
 class Unpack(AST):
-    def __init__(self, subtargets, sourcepath=None, linestart=None):
-        super(Unpack, self).__init__(Unpack, *subtargets, sourcepath=sourcepath, linestart=linestart)
+    def __init__(self, subtargets, **options):
+        super(Unpack, self).__init__(Unpack, *subtargets, **options)
 
     @property
     def subtargets(self):

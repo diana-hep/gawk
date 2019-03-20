@@ -59,9 +59,9 @@ class BytecodeWalker(object):
                 return "{0} in {1}".format(name, self.sourcepath)
         else:
             if self.sourcepath is None:
-                return "{0} on line {1}".format(name, self.linestart + node.linestart)
+                return "{0} on line {1}".format(name, node.linestart)
             else:
-                return "{0} on line {1} of {2}".format(name, self.linestart + node.linestart, self.sourcepath)
+                return "{0} on line {1} of {2}".format(name, node.linestart, self.sourcepath)
 
     def find_offset(self, node, offset):
         if hasattr(node, "offset"):
@@ -824,10 +824,10 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('LOAD_ASSERT', node))
 
     def n_slice0(self, node):
-        raise NotImplementedError(self.nameline('slice0', node))
+        return rejig.syntaxtree.Call("slice", rejig.syntaxtree.Const(None, sourcepath=self.sourcepath, linestart=node.linestart), rejig.syntaxtree.Const(None, sourcepath=self.sourcepath, linestart=node.linestart), rejig.syntaxtree.Const(None, sourcepath=self.sourcepath, linestart=node.linestart), sourcepath=self.sourcepath, linestart=node.linestart)
 
     def n_slice1(self, node):
-        raise NotImplementedError(self.nameline('slice1', node))
+        return rejig.syntaxtree.Call("slice", rejig.syntaxtree.Const(None, sourcepath=self.sourcepath, linestart=node.linestart), self.n(node[0]), rejig.syntaxtree.Const(None, sourcepath=self.sourcepath, linestart=node.linestart), sourcepath=self.sourcepath, linestart=node.linestart)
 
     def n_slice2(self, node):
         '''
@@ -850,10 +850,10 @@ class BytecodeWalker(object):
         slice3 ::= expr expr expr SLICE+3
         slice3 ::= expr expr expr DUP_TOPX_3 SLICE+3
         '''
-        raise NotImplementedError(self.nameline('slice2', node))
+        return rejig.syntaxtree.Call("slice", self.n(node[0]), self.n(node[1]), rejig.syntaxtree.Const(None, sourcepath=self.sourcepath, linestart=node.linestart), sourcepath=self.sourcepath, linestart=node.linestart)
 
     def n_slice3(self, node):
-        raise NotImplementedError(self.nameline('slice3', node))
+        return rejig.syntaxtree.Call("slice", self.n(node[0]), self.n(node[1]), self.n(node[2]), sourcepath=self.sourcepath, linestart=node.linestart)
 
     def n_unary_convert(self, node):
         raise NotImplementedError(self.nameline('unary_convert', node))
@@ -1030,7 +1030,19 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('DELETE_ATTR', node))
 
     def n_kwarg(self, node):
-        raise NotImplementedError(self.nameline('kwarg', node))
+        fcn = self.n(node[0])
+        allargs = tuple(self.n(x) for x in node[1:-2])
+        keywords = node[-2].pattr
+        args = allargs[:-len(keywords)]
+        kwargs = tuple(zip(keywords, allargs[-len(keywords):]))
+
+
+
+
+
+
+
+        return rejig.syntaxtree.CallKeyword(fcn, args, kwargs, sourcepath=self.sourcepath, linestart=node.linestart)
 
     def n_kv3(self, node):
         raise NotImplementedError(self.nameline('kv3', node))
@@ -1347,7 +1359,7 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('INPLACE_DIVIDE', node))
 
     def n_BINARY_DIVIDE(self, node):
-        raise NotImplementedError(self.nameline('BINARY_DIVIDE', node))
+        return "/"
 
     def n_print_nl(self, node):
         raise NotImplementedError(self.nameline('print_nl', node))

@@ -125,9 +125,9 @@ class BytecodeWalker(object):
                 return "{0} in {1}".format(name, self.sourcepath)
         else:
             if self.sourcepath is None:
-                return "{0} on line {1}".format(name, self.linestart + node.linestart)
+                return "{0} on line {1}".format(name, node.linestart)
             else:
-                return "{0} on line {1} of {2}".format(name, self.linestart + node.linestart, self.sourcepath)
+                return "{0} on line {1} of {2}".format(name, node.linestart, self.sourcepath)
 
     def find_offset(self, node, offset):
         if hasattr(node, "offset"):
