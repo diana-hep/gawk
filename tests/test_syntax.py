@@ -7,7 +7,7 @@ total = 0
 def check(what_is, what_should_be):
     global failed, total
     env = {}
-    if "\n" in what_is or " = " in what_is or "def " in what_is:
+    if "\n" in what_is or " = " in what_is or "def " in what_is or "print(" in what_is:
         exec("def f():\n    " + "\n    ".join(what_is.split("\n")), env)
     else:
         exec("def f():\n    return " + what_is, env)
@@ -360,245 +360,245 @@ def check(what_is, what_should_be):
 # check('f(x, None)', Suite((Call('return', Call(Name('f'), Name('x'), Const(None))),)))
 # check('f(x, y, None)', Suite((Call('return', Call(Name('f'), Name('x'), Name('y'), Const(None))),)))
 # check('f(x, y, z, None)', Suite((Call('return', Call(Name('f'), Name('x'), Name('y'), Name('z'), Const(None))),)))
-check('f(x=1)', Suite((Call('return', CallKeyword(Name('f'), (), (('x', Const(1)),))),)))
-check('f(x, y=1)', Suite((Call('return', CallKeyword(Name('f'), (Name('x'),), (('y', Const(1)),))),)))
-check('f(x, y, z=1)', Suite((Call('return', CallKeyword(Name('f'), (Name('x'), Name('y'),), (('z', Const(1)),))),)))
+# check('f(x=1)', Suite((Call('return', CallKeyword(Name('f'), (), (('x', Const(1)),))),)))
+# check('f(x, y=1)', Suite((Call('return', CallKeyword(Name('f'), (Name('x'),), (('y', Const(1)),))),)))
+# check('f(x, y, z=1)', Suite((Call('return', CallKeyword(Name('f'), (Name('x'), Name('y'),), (('z', Const(1)),))),)))
 
-check('x = 1; x', Suite((Assign((Name('x'),), Const(1)), Name('x'), Call('return', Const(None)),)))
-check('x = 1; x;', Suite((Assign((Name('x'),), Const(1)), Name('x'), Call('return', Const(None)),)))
-check('x, = 1; x', Suite((Assign((Unpack((Name('x'),)),), Const(1)), Name('x'), Call('return', Const(None)),)))
-check('x, y = 1; x', Suite((Assign((Unpack((Name('x'), Name('y'))),), Const(1)), Name('x'), Call('return', Const(None)),)))
-check('x, y, = 1; x', Suite((Assign((Unpack((Name('x'), Name('y'))),), Const(1)), Name('x'), Call('return', Const(None)),)))
-check('x, y, z = 1; x', Suite((Assign((Unpack((Name('x'), Name('y'), Name('z'))),), Const(1)), Name('x'), Call('return', Const(None)),)))
-check('x, y, z, = 1; x', Suite((Assign((Unpack((Name('x'), Name('y'), Name('z'))),), Const(1)), Name('x'), Call('return', Const(None)),)))
+# check('x = 1; x', Suite((Assign((Name('x'),), Const(1)), Name('x'), Call('return', Const(None)),)))
+# check('x = 1; x;', Suite((Assign((Name('x'),), Const(1)), Name('x'), Call('return', Const(None)),)))
+# check('x, = 1; x', Suite((Assign((Unpack((Name('x'),)),), Const(1)), Name('x'), Call('return', Const(None)),)))
+# check('x, y = 1; x', Suite((Assign((Unpack((Name('x'), Name('y'))),), Const(1)), Name('x'), Call('return', Const(None)),)))
+# check('x, y, = 1; x', Suite((Assign((Unpack((Name('x'), Name('y'))),), Const(1)), Name('x'), Call('return', Const(None)),)))
+# check('x, y, z = 1; x', Suite((Assign((Unpack((Name('x'), Name('y'), Name('z'))),), Const(1)), Name('x'), Call('return', Const(None)),)))
+# check('x, y, z, = 1; x', Suite((Assign((Unpack((Name('x'), Name('y'), Name('z'))),), Const(1)), Name('x'), Call('return', Const(None)),)))
 
-check("False", Suite((Call('return', Const(False)),)))
-check("True", Suite((Call('return', Const(True)),)))
-check("not x", Suite((Call('return', Call('not', Name('x'))),)))
-check("not x and not y", Suite((Call('return', Call('and', Call('not', Name('x')), Call('not', Name('y')))),)))
-check("not x and not y and not z", Suite((Call('return', Call('and', Call('not', Name('x')), Call('and', Call('not', Name('y')), Call('not', Name('z'))))),)))
-check("not x and not y and not z", Suite((Call('return', Call('and', Call('not', Name('x')), Call('and', Call('not', Name('y')), Call('not', Name('z'))))),)))
-check("not x and not y and not z", Suite((Call('return', Call('and', Call('not', Name('x')), Call('and', Call('not', Name('y')), Call('not', Name('z'))))),)))
-check("not x or not y", Suite((Call('return', Call('or', Call('not', Name('x')), Call('not', Name('y')))),)))
-check("not x or not y or not z", Suite((Call('return', Call('or', Call('not', Name('x')), Call('or', Call('not', Name('y')), Call('not', Name('z'))))),)))
-check("not x or not y or not z", Suite((Call('return', Call('or', Call('not', Name('x')), Call('or', Call('not', Name('y')), Call('not', Name('z'))))),)))
-check("not x or not y or not z", Suite((Call('return', Call('or', Call('not', Name('x')), Call('or', Call('not', Name('y')), Call('not', Name('z'))))),)))
-check("(not x or not y, None) and not z", Suite((Call('return', Call('and', Call('tuple', Call('or', Call('not', Name('x')), Call('not', Name('y'))), Const(None)), Call('not', Name('z')))),)))
-check("not x and (not y or not z, None)", Suite((Call('return', Call('and', Call('not', Name('x')), Call('tuple', Call('or', Call('not', Name('y')), Call('not', Name('z'))), Const(None)))),)))
+# check("False", Suite((Call('return', Const(False)),)))
+# check("True", Suite((Call('return', Const(True)),)))
+# check("not x", Suite((Call('return', Call('not', Name('x'))),)))
+# check("not x and not y", Suite((Call('return', Call('and', Call('not', Name('x')), Call('not', Name('y')))),)))
+# check("not x and not y and not z", Suite((Call('return', Call('and', Call('not', Name('x')), Call('and', Call('not', Name('y')), Call('not', Name('z'))))),)))
+# check("not x and not y and not z", Suite((Call('return', Call('and', Call('not', Name('x')), Call('and', Call('not', Name('y')), Call('not', Name('z'))))),)))
+# check("not x and not y and not z", Suite((Call('return', Call('and', Call('not', Name('x')), Call('and', Call('not', Name('y')), Call('not', Name('z'))))),)))
+# check("not x or not y", Suite((Call('return', Call('or', Call('not', Name('x')), Call('not', Name('y')))),)))
+# check("not x or not y or not z", Suite((Call('return', Call('or', Call('not', Name('x')), Call('or', Call('not', Name('y')), Call('not', Name('z'))))),)))
+# check("not x or not y or not z", Suite((Call('return', Call('or', Call('not', Name('x')), Call('or', Call('not', Name('y')), Call('not', Name('z'))))),)))
+# check("not x or not y or not z", Suite((Call('return', Call('or', Call('not', Name('x')), Call('or', Call('not', Name('y')), Call('not', Name('z'))))),)))
+# check("(not x or not y, None) and not z", Suite((Call('return', Call('and', Call('tuple', Call('or', Call('not', Name('x')), Call('not', Name('y'))), Const(None)), Call('not', Name('z')))),)))
+# check("not x and (not y or not z, None)", Suite((Call('return', Call('and', Call('not', Name('x')), Call('tuple', Call('or', Call('not', Name('y')), Call('not', Name('z'))), Const(None)))),)))
 
-check("not x(1, None)", Suite((Call('return', Call('not', Call(Name('x'), Const(1), Const(None)))),)))
-check("not x(1, None) and not y(2, None)", Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('not', Call(Name('y'), Const(2), Const(None))))),)))
-check("not x(1, None) and not y(2, None) and not z(3, None)", Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('and', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
-check("not x(1, None) and not y(2, None) and not z(3, None)", Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('and', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
-check("not x(1, None) and not y(2, None) and not z(3, None)", Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('and', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
-check("not x(1, None) or not y(2, None)", Suite((Call('return', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('not', Call(Name('y'), Const(2), Const(None))))),)))
-check("not x(1, None) or not y(2, None) or not z(3, None)", Suite((Call('return', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('or', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
-check("not x(1, None) or not y(2, None) or not z(3, None)", Suite((Call('return', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('or', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
-check("not x(1, None) or not y(2, None) or not z(3, None)", Suite((Call('return', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('or', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
-check("(not x(1, None) or not y(2, None), None) and not z(3, None)", Suite((Call('return', Call('and', Call('tuple', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('not', Call(Name('y'), Const(2), Const(None)))), Const(None)), Call('not', Call(Name('z'), Const(3), Const(None))))),)))
-check("not x(1, None) and (not y(2, None) or not z(3, None), None)", Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('tuple', Call('or', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))), Const(None)))),)))
+# check("not x(1, None)", Suite((Call('return', Call('not', Call(Name('x'), Const(1), Const(None)))),)))
+# check("not x(1, None) and not y(2, None)", Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('not', Call(Name('y'), Const(2), Const(None))))),)))
+# check("not x(1, None) and not y(2, None) and not z(3, None)", Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('and', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
+# check("not x(1, None) and not y(2, None) and not z(3, None)", Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('and', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
+# check("not x(1, None) and not y(2, None) and not z(3, None)", Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('and', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
+# check("not x(1, None) or not y(2, None)", Suite((Call('return', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('not', Call(Name('y'), Const(2), Const(None))))),)))
+# check("not x(1, None) or not y(2, None) or not z(3, None)", Suite((Call('return', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('or', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
+# check("not x(1, None) or not y(2, None) or not z(3, None)", Suite((Call('return', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('or', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
+# check("not x(1, None) or not y(2, None) or not z(3, None)", Suite((Call('return', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('or', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
+# check("(not x(1, None) or not y(2, None), None) and not z(3, None)", Suite((Call('return', Call('and', Call('tuple', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('not', Call(Name('y'), Const(2), Const(None)))), Const(None)), Call('not', Call(Name('z'), Const(3), Const(None))))),)))
+# check("not x(1, None) and (not y(2, None) or not z(3, None), None)", Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('tuple', Call('or', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))), Const(None)))),)))
 
-check("not x.a", Suite((Call('return', Call('not', Call('.', Name('x'), 'a'))),)))
-check("not x.a and not y.b", Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('not', Call('.', Name('y'), 'b')))),)))
-check("not x.a and not y.b and not z.c", Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('and', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
-check("not x.a and not y.b and not z.c", Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('and', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
-check("not x.a and not y.b and not z.c", Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('and', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
-check("not x.a or not y.b", Suite((Call('return', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('not', Call('.', Name('y'), 'b')))),)))
-check("not x.a or not y.b or not z.c", Suite((Call('return', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('or', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
-check("not x.a or not y.b or not z.c", Suite((Call('return', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('or', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
-check("not x.a or not y.b or not z.c", Suite((Call('return', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('or', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
-check("(not x.a or not y.b, None) and not z.c", Suite((Call('return', Call('and', Call('tuple', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('not', Call('.', Name('y'), 'b'))), Const(None)), Call('not', Call('.', Name('z'), 'c')))),)))
-check("not x.a and (not y.b or not z.c, None)", Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('tuple', Call('or', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))), Const(None)))),)))
+# check("not x.a", Suite((Call('return', Call('not', Call('.', Name('x'), 'a'))),)))
+# check("not x.a and not y.b", Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('not', Call('.', Name('y'), 'b')))),)))
+# check("not x.a and not y.b and not z.c", Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('and', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
+# check("not x.a and not y.b and not z.c", Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('and', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
+# check("not x.a and not y.b and not z.c", Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('and', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
+# check("not x.a or not y.b", Suite((Call('return', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('not', Call('.', Name('y'), 'b')))),)))
+# check("not x.a or not y.b or not z.c", Suite((Call('return', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('or', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
+# check("not x.a or not y.b or not z.c", Suite((Call('return', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('or', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
+# check("not x.a or not y.b or not z.c", Suite((Call('return', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('or', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
+# check("(not x.a or not y.b, None) and not z.c", Suite((Call('return', Call('and', Call('tuple', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('not', Call('.', Name('y'), 'b'))), Const(None)), Call('not', Call('.', Name('z'), 'c')))),)))
+# check("not x.a and (not y.b or not z.c, None)", Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('tuple', Call('or', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))), Const(None)))),)))
 
-check("False", Suite((Call('return', Const(False)),)))
-check("True", Suite((Call('return', Const(True)),)))
-check("not x", Suite((Call('return', Call('not', Name('x'))),)))
-check("not x and not y", Suite((Call('return', Call('and', Call('not', Name('x')), Call('not', Name('y')))),)))
-check("not x and not y and not z", Suite((Call('return', Call('and', Call('not', Name('x')), Call('and', Call('not', Name('y')), Call('not', Name('z'))))),)))
-check("not x and not y and not z", Suite((Call('return', Call('and', Call('not', Name('x')), Call('and', Call('not', Name('y')), Call('not', Name('z'))))),)))
-check("not x and not y and not z", Suite((Call('return', Call('and', Call('not', Name('x')), Call('and', Call('not', Name('y')), Call('not', Name('z'))))),)))
-check("not x or not y", Suite((Call('return', Call('or', Call('not', Name('x')), Call('not', Name('y')))),)))
-check("not x or not y or not z", Suite((Call('return', Call('or', Call('not', Name('x')), Call('or', Call('not', Name('y')), Call('not', Name('z'))))),)))
-check("not x or not y or not z", Suite((Call('return', Call('or', Call('not', Name('x')), Call('or', Call('not', Name('y')), Call('not', Name('z'))))),)))
-check("not x or not y or not z", Suite((Call('return', Call('or', Call('not', Name('x')), Call('or', Call('not', Name('y')), Call('not', Name('z'))))),)))
-check("(not x or not y, None) and not z", Suite((Call('return', Call('and', Call('tuple', Call('or', Call('not', Name('x')), Call('not', Name('y'))), Const(None)), Call('not', Name('z')))),)))
-check("not x and (not y or not z, None)", Suite((Call('return', Call('and', Call('not', Name('x')), Call('tuple', Call('or', Call('not', Name('y')), Call('not', Name('z'))), Const(None)))),)))
+# check("False", Suite((Call('return', Const(False)),)))
+# check("True", Suite((Call('return', Const(True)),)))
+# check("not x", Suite((Call('return', Call('not', Name('x'))),)))
+# check("not x and not y", Suite((Call('return', Call('and', Call('not', Name('x')), Call('not', Name('y')))),)))
+# check("not x and not y and not z", Suite((Call('return', Call('and', Call('not', Name('x')), Call('and', Call('not', Name('y')), Call('not', Name('z'))))),)))
+# check("not x and not y and not z", Suite((Call('return', Call('and', Call('not', Name('x')), Call('and', Call('not', Name('y')), Call('not', Name('z'))))),)))
+# check("not x and not y and not z", Suite((Call('return', Call('and', Call('not', Name('x')), Call('and', Call('not', Name('y')), Call('not', Name('z'))))),)))
+# check("not x or not y", Suite((Call('return', Call('or', Call('not', Name('x')), Call('not', Name('y')))),)))
+# check("not x or not y or not z", Suite((Call('return', Call('or', Call('not', Name('x')), Call('or', Call('not', Name('y')), Call('not', Name('z'))))),)))
+# check("not x or not y or not z", Suite((Call('return', Call('or', Call('not', Name('x')), Call('or', Call('not', Name('y')), Call('not', Name('z'))))),)))
+# check("not x or not y or not z", Suite((Call('return', Call('or', Call('not', Name('x')), Call('or', Call('not', Name('y')), Call('not', Name('z'))))),)))
+# check("(not x or not y, None) and not z", Suite((Call('return', Call('and', Call('tuple', Call('or', Call('not', Name('x')), Call('not', Name('y'))), Const(None)), Call('not', Name('z')))),)))
+# check("not x and (not y or not z, None)", Suite((Call('return', Call('and', Call('not', Name('x')), Call('tuple', Call('or', Call('not', Name('y')), Call('not', Name('z'))), Const(None)))),)))
 
-check("not x(1, None)", Suite((Call('return', Call('not', Call(Name('x'), Const(1), Const(None)))),)))
-check("not x(1, None) and not y(2, None)", Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('not', Call(Name('y'), Const(2), Const(None))))),)))
-check("not x(1, None) and not y(2, None) and not z(3, None)", Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('and', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
-check("not x(1, None) and not y(2, None) and not z(3, None)", Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('and', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
-check("not x(1, None) and not y(2, None) and not z(3, None)", Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('and', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
-check("not x(1, None) or not y(2, None)", Suite((Call('return', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('not', Call(Name('y'), Const(2), Const(None))))),)))
-check("not x(1, None) or not y(2, None) or not z(3, None)", Suite((Call('return', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('or', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
-check("not x(1, None) or not y(2, None) or not z(3, None)", Suite((Call('return', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('or', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
-check("not x(1, None) or not y(2, None) or not z(3, None)", Suite((Call('return', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('or', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
-check("(not x(1, None) or not y(2, None), None) and not z(3, None)", Suite((Call('return', Call('and', Call('tuple', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('not', Call(Name('y'), Const(2), Const(None)))), Const(None)), Call('not', Call(Name('z'), Const(3), Const(None))))),)))
-check("not x(1, None) and (not y(2, None) or not z(3, None), None)", Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('tuple', Call('or', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))), Const(None)))),)))
+# check("not x(1, None)", Suite((Call('return', Call('not', Call(Name('x'), Const(1), Const(None)))),)))
+# check("not x(1, None) and not y(2, None)", Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('not', Call(Name('y'), Const(2), Const(None))))),)))
+# check("not x(1, None) and not y(2, None) and not z(3, None)", Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('and', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
+# check("not x(1, None) and not y(2, None) and not z(3, None)", Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('and', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
+# check("not x(1, None) and not y(2, None) and not z(3, None)", Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('and', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
+# check("not x(1, None) or not y(2, None)", Suite((Call('return', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('not', Call(Name('y'), Const(2), Const(None))))),)))
+# check("not x(1, None) or not y(2, None) or not z(3, None)", Suite((Call('return', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('or', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
+# check("not x(1, None) or not y(2, None) or not z(3, None)", Suite((Call('return', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('or', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
+# check("not x(1, None) or not y(2, None) or not z(3, None)", Suite((Call('return', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('or', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
+# check("(not x(1, None) or not y(2, None), None) and not z(3, None)", Suite((Call('return', Call('and', Call('tuple', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('not', Call(Name('y'), Const(2), Const(None)))), Const(None)), Call('not', Call(Name('z'), Const(3), Const(None))))),)))
+# check("not x(1, None) and (not y(2, None) or not z(3, None), None)", Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('tuple', Call('or', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))), Const(None)))),)))
 
-check("not x.a", Suite((Call('return', Call('not', Call('.', Name('x'), 'a'))),)))
-check("not x.a and not y.b", Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('not', Call('.', Name('y'), 'b')))),)))
-check("not x.a and not y.b and not z.c", Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('and', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
-check("not x.a and not y.b and not z.c", Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('and', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
-check("not x.a and not y.b and not z.c", Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('and', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
-check("not x.a or not y.b", Suite((Call('return', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('not', Call('.', Name('y'), 'b')))),)))
-check("not x.a or not y.b or not z.c", Suite((Call('return', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('or', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
-check("not x.a or not y.b or not z.c", Suite((Call('return', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('or', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
-check("not x.a or not y.b or not z.c", Suite((Call('return', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('or', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
-check("(not x.a or not y.b, None) and not z.c", Suite((Call('return', Call('and', Call('tuple', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('not', Call('.', Name('y'), 'b'))), Const(None)), Call('not', Call('.', Name('z'), 'c')))),)))
-check("not x.a and (not y.b or not z.c, None)", Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('tuple', Call('or', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))), Const(None)))),)))
+# check("not x.a", Suite((Call('return', Call('not', Call('.', Name('x'), 'a'))),)))
+# check("not x.a and not y.b", Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('not', Call('.', Name('y'), 'b')))),)))
+# check("not x.a and not y.b and not z.c", Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('and', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
+# check("not x.a and not y.b and not z.c", Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('and', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
+# check("not x.a and not y.b and not z.c", Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('and', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
+# check("not x.a or not y.b", Suite((Call('return', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('not', Call('.', Name('y'), 'b')))),)))
+# check("not x.a or not y.b or not z.c", Suite((Call('return', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('or', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
+# check("not x.a or not y.b or not z.c", Suite((Call('return', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('or', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
+# check("not x.a or not y.b or not z.c", Suite((Call('return', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('or', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
+# check("(not x.a or not y.b, None) and not z.c", Suite((Call('return', Call('and', Call('tuple', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('not', Call('.', Name('y'), 'b'))), Const(None)), Call('not', Call('.', Name('z'), 'c')))),)))
+# check("not x.a and (not y.b or not z.c, None)", Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('tuple', Call('or', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))), Const(None)))),)))
 
-check('''False''', Suite((Call('return', Const(False)),)))
-check('''True''', Suite((Call('return', Const(True)),)))
-check('''not x''', Suite((Call('return', Call('not', Name('x'))),)))
-check('''not x and not y''', Suite((Call('return', Call('and', Call('not', Name('x')), Call('not', Name('y')))),)))
-check('''not x and not y and not z''', Suite((Call('return', Call('and', Call('not', Name('x')), Call('and', Call('not', Name('y')), Call('not', Name('z'))))),)))
-check('''not x and not y and not z''', Suite((Call('return', Call('and', Call('not', Name('x')), Call('and', Call('not', Name('y')), Call('not', Name('z'))))),)))
-check('''not x and not y and not z''', Suite((Call('return', Call('and', Call('not', Name('x')), Call('and', Call('not', Name('y')), Call('not', Name('z'))))),)))
-check('''not x or not y''', Suite((Call('return', Call('or', Call('not', Name('x')), Call('not', Name('y')))),)))
-check('''not x or not y or not z''', Suite((Call('return', Call('or', Call('not', Name('x')), Call('or', Call('not', Name('y')), Call('not', Name('z'))))),)))
-check('''not x or not y or not z''', Suite((Call('return', Call('or', Call('not', Name('x')), Call('or', Call('not', Name('y')), Call('not', Name('z'))))),)))
-check('''not x or not y or not z''', Suite((Call('return', Call('or', Call('not', Name('x')), Call('or', Call('not', Name('y')), Call('not', Name('z'))))),)))
-check('''(not x or not y, None) and not z''', Suite((Call('return', Call('and', Call('tuple', Call('or', Call('not', Name('x')), Call('not', Name('y'))), Const(None)), Call('not', Name('z')))),)))
-check('''not x and (not y or not z, None)''', Suite((Call('return', Call('and', Call('not', Name('x')), Call('tuple', Call('or', Call('not', Name('y')), Call('not', Name('z'))), Const(None)))),)))
+# check('''False''', Suite((Call('return', Const(False)),)))
+# check('''True''', Suite((Call('return', Const(True)),)))
+# check('''not x''', Suite((Call('return', Call('not', Name('x'))),)))
+# check('''not x and not y''', Suite((Call('return', Call('and', Call('not', Name('x')), Call('not', Name('y')))),)))
+# check('''not x and not y and not z''', Suite((Call('return', Call('and', Call('not', Name('x')), Call('and', Call('not', Name('y')), Call('not', Name('z'))))),)))
+# check('''not x and not y and not z''', Suite((Call('return', Call('and', Call('not', Name('x')), Call('and', Call('not', Name('y')), Call('not', Name('z'))))),)))
+# check('''not x and not y and not z''', Suite((Call('return', Call('and', Call('not', Name('x')), Call('and', Call('not', Name('y')), Call('not', Name('z'))))),)))
+# check('''not x or not y''', Suite((Call('return', Call('or', Call('not', Name('x')), Call('not', Name('y')))),)))
+# check('''not x or not y or not z''', Suite((Call('return', Call('or', Call('not', Name('x')), Call('or', Call('not', Name('y')), Call('not', Name('z'))))),)))
+# check('''not x or not y or not z''', Suite((Call('return', Call('or', Call('not', Name('x')), Call('or', Call('not', Name('y')), Call('not', Name('z'))))),)))
+# check('''not x or not y or not z''', Suite((Call('return', Call('or', Call('not', Name('x')), Call('or', Call('not', Name('y')), Call('not', Name('z'))))),)))
+# check('''(not x or not y, None) and not z''', Suite((Call('return', Call('and', Call('tuple', Call('or', Call('not', Name('x')), Call('not', Name('y'))), Const(None)), Call('not', Name('z')))),)))
+# check('''not x and (not y or not z, None)''', Suite((Call('return', Call('and', Call('not', Name('x')), Call('tuple', Call('or', Call('not', Name('y')), Call('not', Name('z'))), Const(None)))),)))
 
-check('''not x(1, None)''', Suite((Call('return', Call('not', Call(Name('x'), Const(1), Const(None)))),)))
-check('''not x(1, None) and not y(2, None)''', Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('not', Call(Name('y'), Const(2), Const(None))))),)))
-check('''not x(1, None) and not y(2, None) and not z(3, None)''', Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('and', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
-check('''not x(1, None) and not y(2, None) and not z(3, None)''', Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('and', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
-check('''not x(1, None) and not y(2, None) and not z(3, None)''', Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('and', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
-check('''not x(1, None) or not y(2, None)''', Suite((Call('return', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('not', Call(Name('y'), Const(2), Const(None))))),)))
-check('''not x(1, None) or not y(2, None) or not z(3, None)''', Suite((Call('return', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('or', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
-check('''not x(1, None) or not y(2, None) or not z(3, None)''', Suite((Call('return', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('or', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
-check('''not x(1, None) or not y(2, None) or not z(3, None)''', Suite((Call('return', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('or', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
-check('''(not x(1, None) or not y(2, None), None) and not z(3, None)''', Suite((Call('return', Call('and', Call('tuple', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('not', Call(Name('y'), Const(2), Const(None)))), Const(None)), Call('not', Call(Name('z'), Const(3), Const(None))))),)))
-check('''not x(1, None) and (not y(2, None) or not z(3, None), None)''', Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('tuple', Call('or', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))), Const(None)))),)))
+# check('''not x(1, None)''', Suite((Call('return', Call('not', Call(Name('x'), Const(1), Const(None)))),)))
+# check('''not x(1, None) and not y(2, None)''', Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('not', Call(Name('y'), Const(2), Const(None))))),)))
+# check('''not x(1, None) and not y(2, None) and not z(3, None)''', Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('and', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
+# check('''not x(1, None) and not y(2, None) and not z(3, None)''', Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('and', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
+# check('''not x(1, None) and not y(2, None) and not z(3, None)''', Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('and', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
+# check('''not x(1, None) or not y(2, None)''', Suite((Call('return', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('not', Call(Name('y'), Const(2), Const(None))))),)))
+# check('''not x(1, None) or not y(2, None) or not z(3, None)''', Suite((Call('return', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('or', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
+# check('''not x(1, None) or not y(2, None) or not z(3, None)''', Suite((Call('return', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('or', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
+# check('''not x(1, None) or not y(2, None) or not z(3, None)''', Suite((Call('return', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('or', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))))),)))
+# check('''(not x(1, None) or not y(2, None), None) and not z(3, None)''', Suite((Call('return', Call('and', Call('tuple', Call('or', Call('not', Call(Name('x'), Const(1), Const(None))), Call('not', Call(Name('y'), Const(2), Const(None)))), Const(None)), Call('not', Call(Name('z'), Const(3), Const(None))))),)))
+# check('''not x(1, None) and (not y(2, None) or not z(3, None), None)''', Suite((Call('return', Call('and', Call('not', Call(Name('x'), Const(1), Const(None))), Call('tuple', Call('or', Call('not', Call(Name('y'), Const(2), Const(None))), Call('not', Call(Name('z'), Const(3), Const(None)))), Const(None)))),)))
 
-check('''not x.a''', Suite((Call('return', Call('not', Call('.', Name('x'), 'a'))),)))
-check('''not x.a and not y.b''', Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('not', Call('.', Name('y'), 'b')))),)))
-check('''not x.a and not y.b and not z.c''', Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('and', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
-check('''not x.a and not y.b and not z.c''', Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('and', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
-check('''not x.a and not y.b and not z.c''', Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('and', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
-check('''not x.a or not y.b''', Suite((Call('return', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('not', Call('.', Name('y'), 'b')))),)))
-check('''not x.a or not y.b or not z.c''', Suite((Call('return', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('or', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
-check('''not x.a or not y.b or not z.c''', Suite((Call('return', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('or', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
-check('''not x.a or not y.b or not z.c''', Suite((Call('return', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('or', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
-check('''(not x.a or not y.b, None) and not z.c''', Suite((Call('return', Call('and', Call('tuple', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('not', Call('.', Name('y'), 'b'))), Const(None)), Call('not', Call('.', Name('z'), 'c')))),)))
-check('''not x.a and (not y.b or not z.c, None)''', Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('tuple', Call('or', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))), Const(None)))),)))
+# check('''not x.a''', Suite((Call('return', Call('not', Call('.', Name('x'), 'a'))),)))
+# check('''not x.a and not y.b''', Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('not', Call('.', Name('y'), 'b')))),)))
+# check('''not x.a and not y.b and not z.c''', Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('and', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
+# check('''not x.a and not y.b and not z.c''', Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('and', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
+# check('''not x.a and not y.b and not z.c''', Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('and', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
+# check('''not x.a or not y.b''', Suite((Call('return', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('not', Call('.', Name('y'), 'b')))),)))
+# check('''not x.a or not y.b or not z.c''', Suite((Call('return', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('or', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
+# check('''not x.a or not y.b or not z.c''', Suite((Call('return', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('or', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
+# check('''not x.a or not y.b or not z.c''', Suite((Call('return', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('or', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))))),)))
+# check('''(not x.a or not y.b, None) and not z.c''', Suite((Call('return', Call('and', Call('tuple', Call('or', Call('not', Call('.', Name('x'), 'a')), Call('not', Call('.', Name('y'), 'b'))), Const(None)), Call('not', Call('.', Name('z'), 'c')))),)))
+# check('''not x.a and (not y.b or not z.c, None)''', Suite((Call('return', Call('and', Call('not', Call('.', Name('x'), 'a')), Call('tuple', Call('or', Call('not', Call('.', Name('y'), 'b')), Call('not', Call('.', Name('z'), 'c'))), Const(None)))),)))
 
-check('''x != y''', Suite((Call('return', Call('!=', Name('x'), Name('y'))),)))
-check('''x == y''', Suite((Call('return', Call('==', Name('x'), Name('y'))),)))
-check('''x <= y''', Suite((Call('return', Call('<=', Name('x'), Name('y'))),)))
-check('''x > y''', Suite((Call('return', Call('>', Name('x'), Name('y'))),)))
-check('''x >= y''', Suite((Call('return', Call('>=', Name('x'), Name('y'))),)))
-check('''x < y''', Suite((Call('return', Call('<', Name('x'), Name('y'))),)))
-check('''x not in y''', Suite((Call('return', Call('not-in', Name('x'), Name('y'))),)))
-check('''x in y''', Suite((Call('return', Call('in', Name('x'), Name('y'))),)))
+# check('''x != y''', Suite((Call('return', Call('!=', Name('x'), Name('y'))),)))
+# check('''x == y''', Suite((Call('return', Call('==', Name('x'), Name('y'))),)))
+# check('''x <= y''', Suite((Call('return', Call('<=', Name('x'), Name('y'))),)))
+# check('''x > y''', Suite((Call('return', Call('>', Name('x'), Name('y'))),)))
+# check('''x >= y''', Suite((Call('return', Call('>=', Name('x'), Name('y'))),)))
+# check('''x < y''', Suite((Call('return', Call('<', Name('x'), Name('y'))),)))
+# check('''x not in y''', Suite((Call('return', Call('not-in', Name('x'), Name('y'))),)))
+# check('''x in y''', Suite((Call('return', Call('in', Name('x'), Name('y'))),)))
 
-check('''x == y and y == z''', Suite((Call('return', Call('and', Call('==', Name('x'), Name('y')), Call('==', Name('y'), Name('z')))),)))
-check('''x == y and y == z''', Suite((Call('return', Call('and', Call('==', Name('x'), Name('y')), Call('==', Name('y'), Name('z')))),)))
-check('''x == y or y == z''', Suite((Call('return', Call('or', Call('==', Name('x'), Name('y')), Call('==', Name('y'), Name('z')))),)))
-check('''x != y or y != z''', Suite((Call('return', Call('or', Call('!=', Name('x'), Name('y')), Call('!=', Name('y'), Name('z')))),)))
-check('''x != y or y != z''', Suite((Call('return', Call('or', Call('!=', Name('x'), Name('y')), Call('!=', Name('y'), Name('z')))),)))
-check('''x != y or y == z''', Suite((Call('return', Call('or', Call('!=', Name('x'), Name('y')), Call('==', Name('y'), Name('z')))),)))
+# check('''x == y and y == z''', Suite((Call('return', Call('and', Call('==', Name('x'), Name('y')), Call('==', Name('y'), Name('z')))),)))
+# check('''x == y and y == z''', Suite((Call('return', Call('and', Call('==', Name('x'), Name('y')), Call('==', Name('y'), Name('z')))),)))
+# check('''x == y or y == z''', Suite((Call('return', Call('or', Call('==', Name('x'), Name('y')), Call('==', Name('y'), Name('z')))),)))
+# check('''x != y or y != z''', Suite((Call('return', Call('or', Call('!=', Name('x'), Name('y')), Call('!=', Name('y'), Name('z')))),)))
+# check('''x != y or y != z''', Suite((Call('return', Call('or', Call('!=', Name('x'), Name('y')), Call('!=', Name('y'), Name('z')))),)))
+# check('''x != y or y == z''', Suite((Call('return', Call('or', Call('!=', Name('x'), Name('y')), Call('==', Name('y'), Name('z')))),)))
 
-check('''a and b and c and d and e''', Suite((Call('return', Call('and', Name('a'), Call('and', Name('b'), Call('and', Name('c'), Call('and', Name('d'), Name('e')))))),)))
-check('''a and b and c and d and e''', Suite((Call('return', Call('and', Name('a'), Call('and', Name('b'), Call('and', Name('c'), Call('and', Name('d'), Name('e')))))),)))
+# check('''a and b and c and d and e''', Suite((Call('return', Call('and', Name('a'), Call('and', Name('b'), Call('and', Name('c'), Call('and', Name('d'), Name('e')))))),)))
+# check('''a and b and c and d and e''', Suite((Call('return', Call('and', Name('a'), Call('and', Name('b'), Call('and', Name('c'), Call('and', Name('d'), Name('e')))))),)))
 
-check("def g(x): return 3.14", Suite((Assign((Name('g'),), Def(('x',), (), Suite((Call('return', Const(3.14)),)))), Call('return', Const(None)),)))
-check("""def g(x):
-    return 3.14""", Suite((Assign((Name('g'),), Def(('x',), (), Suite((Call('return', Const(3.14)),)))), Call('return', Const(None)),)))
-check("def g(x, y): return x**2", Suite((Assign((Name('g'),), Def(('x', 'y'), (), Suite((Call('return', Call('**', Name('x'), Const(2))),)))), Call('return', Const(None)),)))
-check("""def g(x, y):
-    return x**2""", Suite((Assign((Name('g'),), Def(('x', 'y'), (), Suite((Call('return', Call('**', Name('x'), Const(2))),)))), Call('return', Const(None)),)))
-check("lambda: 3.14", Suite((Call('return', Def((), (), Suite((Call('return', Const(3.14)),)))),)))
-check("lambda x: x**2", Suite((Call('return', Def(('x',), (), Suite((Call('return', Call('**', Name('x'), Const(2))),)))),)))
-check("(lambda x: x**2, None)", Suite((Call('return', Call('tuple', Def(('x',), (), Suite((Call('return', Call('**', Name('x'), Const(2))),))), Const(None))),)))
+# check("def g(x): return 3.14", Suite((Assign((Name('g'),), Def(('x',), (), Suite((Call('return', Const(3.14)),)))), Call('return', Const(None)),)))
+# check("""def g(x):
+#     return 3.14""", Suite((Assign((Name('g'),), Def(('x',), (), Suite((Call('return', Const(3.14)),)))), Call('return', Const(None)),)))
+# check("def g(x, y): return x**2", Suite((Assign((Name('g'),), Def(('x', 'y'), (), Suite((Call('return', Call('**', Name('x'), Const(2))),)))), Call('return', Const(None)),)))
+# check("""def g(x, y):
+#     return x**2""", Suite((Assign((Name('g'),), Def(('x', 'y'), (), Suite((Call('return', Call('**', Name('x'), Const(2))),)))), Call('return', Const(None)),)))
+# check("lambda: 3.14", Suite((Call('return', Def((), (), Suite((Call('return', Const(3.14)),)))),)))
+# check("lambda x: x**2", Suite((Call('return', Def(('x',), (), Suite((Call('return', Call('**', Name('x'), Const(2))),)))),)))
+# check("(lambda x: x**2, None)", Suite((Call('return', Call('tuple', Def(('x',), (), Suite((Call('return', Call('**', Name('x'), Const(2))),))), Const(None))),)))
 
-check("1 if x == 0 else 2", Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Call('return', Const(1)),)), Suite((Call('return', Const(2)),))),)))
-check("y = (1 if x == 0 else 2, None)", Suite((Assign((Name('y'),), Call('tuple', Call('?', Call('==', Name('x'), Const(0)), Const(1), Const(2)), Const(None))), Call('return', Const(None)),)))
-check("1 if x == 0 else None", Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Call('return', Const(1)),)), Suite((Call('return', Const(None)),))),)))
-check("(1 if x == 0 else 2, None)", Suite((Call('return', Call('tuple', Call('?', Call('==', Name('x'), Const(0)), Const(1), Const(2)), Const(None))),)))
-check("(1 if x == 0 else None, None)", Suite((Call('return', Call('tuple', Call('?', Call('==', Name('x'), Const(0)), Const(1), Const(None)), Const(None))),)))
-check("""if x == 0:
-    return 1""", Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Call('return', Const(1)),)), Suite((Call('return', Const(None)),))),)))
-check("""if x == 0:
-    y = 1
-    return 1""", Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)), Call('return', Const(1)),)), Suite((Call('return', Const(None)),))),)))
-check('''if x == 0:
-    return 1
-else:
-    return 2''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Call('return', Const(1)),)), Suite((Call('return', Const(2)),))),)))
-check('''if x == 0:
-    y = 1
-    return 1
-else:
-    y = 2
-    return 2''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)), Call('return', Const(1)),)), Suite((Assign((Name('y'),), Const(2)),))),)))
-check('''if x == 0:
-    return 1
-elif x == 1:
-    return 2
-else:
-    return 3''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Call('return', Const(1)),)), Suite((Call('if', Call('==', Name('x'), Const(1)), Suite((Call('return', Const(2)),)), Suite((Call('return', Const(3)),))),))),)))
-check('''if x == 0:
-    y = 1
-    return 1
-elif x == 1:
-    y = 2
-    return 2
-else:
-    y = 3
-    return 3''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)), Call('return', Const(1)),)), Suite((Call('if', Call('==', Name('x'), Const(1)), Suite((Assign((Name('y'),), Const(2)), Call('return', Const(2)),)), Suite((Assign((Name('y'),), Const(3)),))),))),)))
-check('''if x == 0:
-    y = 1''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)),))), Call('return', Const(None)),)))
-check('''if x == 0:
-    y = 1
-    z = 1''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)), Assign((Name('z'),), Const(1)),))), Call('return', Const(None)),)))
-check('''if x == 0:
-    y = 1
-else:
-    y = 2''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)),)), Suite((Assign((Name('y'),), Const(2)),))), Call('return', Const(None)),)))
-check('''if x == 0:
-    y = 1
-    z = 1
-else:
-    y = 2
-    z = 2''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)), Assign((Name('z'),), Const(1)),)), Suite((Assign((Name('y'),), Const(2)), Assign((Name('z'),), Const(2)),))), Call('return', Const(None)),)))
-check('''if x == 0:
-    y = 1
-elif x == 1:
-    y = 2
-else:
-    y = 3''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)),)), Suite((Call('if', Call('==', Name('x'), Const(1)), Suite((Assign((Name('y'),), Const(2)),)), Suite((Assign((Name('y'),), Const(3)),))), Call('return', Const(None)),))),)))
-check('''if x == 0:
-    y = 1
-    z = 1
-elif x == 1:
-    y = 2
-    z = 2
-else:
-    y = 3
-    z = 3''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)), Assign((Name('z'),), Const(1)),)), Suite((Call('if', Call('==', Name('x'), Const(1)), Suite((Assign((Name('y'),), Const(2)), Assign((Name('z'),), Const(2)),)), Suite((Assign((Name('y'),), Const(3)), Assign((Name('z'),), Const(3)),))), Call('return', Const(None)),))),)))
+# check("1 if x == 0 else 2", Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Call('return', Const(1)),)), Suite((Call('return', Const(2)),))),)))
+# check("y = (1 if x == 0 else 2, None)", Suite((Assign((Name('y'),), Call('tuple', Call('?', Call('==', Name('x'), Const(0)), Const(1), Const(2)), Const(None))), Call('return', Const(None)),)))
+# check("1 if x == 0 else None", Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Call('return', Const(1)),)), Suite((Call('return', Const(None)),))),)))
+# check("(1 if x == 0 else 2, None)", Suite((Call('return', Call('tuple', Call('?', Call('==', Name('x'), Const(0)), Const(1), Const(2)), Const(None))),)))
+# check("(1 if x == 0 else None, None)", Suite((Call('return', Call('tuple', Call('?', Call('==', Name('x'), Const(0)), Const(1), Const(None)), Const(None))),)))
+# check("""if x == 0:
+#     return 1""", Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Call('return', Const(1)),)), Suite((Call('return', Const(None)),))),)))
+# check("""if x == 0:
+#     y = 1
+#     return 1""", Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)), Call('return', Const(1)),)), Suite((Call('return', Const(None)),))),)))
+# check('''if x == 0:
+#     return 1
+# else:
+#     return 2''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Call('return', Const(1)),)), Suite((Call('return', Const(2)),))),)))
+# check('''if x == 0:
+#     y = 1
+#     return 1
+# else:
+#     y = 2
+#     return 2''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)), Call('return', Const(1)),)), Suite((Assign((Name('y'),), Const(2)),))),)))
+# check('''if x == 0:
+#     return 1
+# elif x == 1:
+#     return 2
+# else:
+#     return 3''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Call('return', Const(1)),)), Suite((Call('if', Call('==', Name('x'), Const(1)), Suite((Call('return', Const(2)),)), Suite((Call('return', Const(3)),))),))),)))
+# check('''if x == 0:
+#     y = 1
+#     return 1
+# elif x == 1:
+#     y = 2
+#     return 2
+# else:
+#     y = 3
+#     return 3''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)), Call('return', Const(1)),)), Suite((Call('if', Call('==', Name('x'), Const(1)), Suite((Assign((Name('y'),), Const(2)), Call('return', Const(2)),)), Suite((Assign((Name('y'),), Const(3)),))),))),)))
+# check('''if x == 0:
+#     y = 1''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)),))), Call('return', Const(None)),)))
+# check('''if x == 0:
+#     y = 1
+#     z = 1''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)), Assign((Name('z'),), Const(1)),))), Call('return', Const(None)),)))
+# check('''if x == 0:
+#     y = 1
+# else:
+#     y = 2''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)),)), Suite((Assign((Name('y'),), Const(2)),))), Call('return', Const(None)),)))
+# check('''if x == 0:
+#     y = 1
+#     z = 1
+# else:
+#     y = 2
+#     z = 2''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)), Assign((Name('z'),), Const(1)),)), Suite((Assign((Name('y'),), Const(2)), Assign((Name('z'),), Const(2)),))), Call('return', Const(None)),)))
+# check('''if x == 0:
+#     y = 1
+# elif x == 1:
+#     y = 2
+# else:
+#     y = 3''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)),)), Suite((Call('if', Call('==', Name('x'), Const(1)), Suite((Assign((Name('y'),), Const(2)),)), Suite((Assign((Name('y'),), Const(3)),))), Call('return', Const(None)),))),)))
+# check('''if x == 0:
+#     y = 1
+#     z = 1
+# elif x == 1:
+#     y = 2
+#     z = 2
+# else:
+#     y = 3
+#     z = 3''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)), Assign((Name('z'),), Const(1)),)), Suite((Call('if', Call('==', Name('x'), Const(1)), Suite((Assign((Name('y'),), Const(2)), Assign((Name('z'),), Const(2)),)), Suite((Assign((Name('y'),), Const(3)), Assign((Name('z'),), Const(3)),))), Call('return', Const(None)),))),)))
 
-check("print(None)", Suite((Call('return', Call(Name('print'), Const(None))),)))
-check("print(1, None)", Suite((Call('return', Call(Name('print'), Const(1), Const(None))),)))
-check("print(1, 2, 3, None)", Suite((Call('return', Call(Name('print'), Const(1), Const(2), Const(3), Const(None))),)))
+# check("print(None)", Suite((Call('return', Call(Name('print'), Const(None))),)))
+# check("print(1, None)", Suite((Call('return', Call(Name('print'), Const(1), Const(None))),)))
+# check("print(1, 2, 3, None)", Suite((Call('return', Call(Name('print'), Const(1), Const(2), Const(3), Const(None))),)))
 
-check("[]", Suite((Call('return', Call('list')),)))
-check("[1]", Suite((Call('return', Call('list', Const(1))),)))
-check("[1, 2]", Suite((Call('return', Call('list', Const(1), Const(2))),)))
-check("[one]", Suite((Call('return', Call('list', Name('one'))),)))
-check("[one, two]", Suite((Call('return', Call('list', Name('one'), Name('two'))),)))
-check("['one']", Suite((Call('return', Call('list', Const('one'))),)))
-check("['one', 'two']", Suite((Call('return', Call('list', Const('one'), Const('two'))),)))
-check("set([])", Suite((Call('return', Call(Name('set'), Call('list'))),)))
-check("set([1])", Suite((Call('return', Call(Name('set'), Call('list', Const(1)))),)))
-check("set([1, 2])", Suite((Call('return', Call(Name('set'), Call('list', Const(1), Const(2)))),)))
-check("set([one])", Suite((Call('return', Call(Name('set'), Call('list', Name('one')))),)))
-check("set([one, two])", Suite((Call('return', Call(Name('set'), Call('list', Name('one'), Name('two')))),)))
-check("set(['one'])", Suite((Call('return', Call(Name('set'), Call('list', Const('one')))),)))
-check("set(['one', 'two'])", Suite((Call('return', Call(Name('set'), Call('list', Const('one'), Const('two')))),)))
+# check("[]", Suite((Call('return', Call('list')),)))
+# check("[1]", Suite((Call('return', Call('list', Const(1))),)))
+# check("[1, 2]", Suite((Call('return', Call('list', Const(1), Const(2))),)))
+# check("[one]", Suite((Call('return', Call('list', Name('one'))),)))
+# check("[one, two]", Suite((Call('return', Call('list', Name('one'), Name('two'))),)))
+# check("['one']", Suite((Call('return', Call('list', Const('one'))),)))
+# check("['one', 'two']", Suite((Call('return', Call('list', Const('one'), Const('two'))),)))
+# check("set([])", Suite((Call('return', Call(Name('set'), Call('list'))),)))
+# check("set([1])", Suite((Call('return', Call(Name('set'), Call('list', Const(1)))),)))
+# check("set([1, 2])", Suite((Call('return', Call(Name('set'), Call('list', Const(1), Const(2)))),)))
+# check("set([one])", Suite((Call('return', Call(Name('set'), Call('list', Name('one')))),)))
+# check("set([one, two])", Suite((Call('return', Call(Name('set'), Call('list', Name('one'), Name('two')))),)))
+# check("set(['one'])", Suite((Call('return', Call(Name('set'), Call('list', Const('one')))),)))
+# check("set(['one', 'two'])", Suite((Call('return', Call(Name('set'), Call('list', Const('one'), Const('two')))),)))
 check("{}", Suite((Call('return', Call('dict')),)))
 check("{1}", Suite((Call('return', Call('set', Const(1))),)))
 check("{1, 2}", Suite((Call('return', Call('set', Const(1), Const(2))),)))

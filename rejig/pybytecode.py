@@ -657,6 +657,9 @@ class BytecodeWalker(object):
                 pairs.append(self.n(x))
             return rejig.syntaxtree.Call("dict", *pairs, sourcepath=self.sourcepath, linestart=node.linestart)
         else:
+            print(node)
+
+
             raise NotImplementedError(self.nameline("dict", node))
 
     def n_and(self, node):
@@ -671,7 +674,18 @@ class BytecodeWalker(object):
         return rejig.syntaxtree.Call(self.n(node[1]), self.n(node[0]), sourcepath=self.sourcepath, linestart=node.linestart)
 
     def n_call(self, node):
-        return rejig.syntaxtree.Call(*[self.n(x) for x in node[:-1]], sourcepath=self.sourcepath, linestart=node.linestart)
+        if any(x.kind == "kwarg" for x in node):
+            fcn = self.n(node[0])
+            args = ()
+            kwargs = ()
+            for x in node[1:-1]:
+                if x.kind == "kwarg":
+                    kwargs = kwargs + (self.n(x),)
+                else:
+                    args = args + (self.n(x),)
+            return rejig.syntaxtree.CallKeyword(fcn, args, kwargs, sourcepath=self.sourcepath, linestart=node.linestart)
+        else:
+            return rejig.syntaxtree.Call(*[self.n(x) for x in node[:-1]], sourcepath=self.sourcepath, linestart=node.linestart)
 
     def n_unary_not(self, node):
         return rejig.syntaxtree.Call("not", self.n(node[0]), sourcepath=self.sourcepath, linestart=node.linestart)
@@ -1030,19 +1044,7 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('DELETE_ATTR', node))
 
     def n_kwarg(self, node):
-        fcn = self.n(node[0])
-        allargs = tuple(self.n(x) for x in node[1:-2])
-        keywords = node[-2].pattr
-        args = allargs[:-len(keywords)]
-        kwargs = tuple(zip(keywords, allargs[-len(keywords):]))
-
-
-
-
-
-
-
-        return rejig.syntaxtree.CallKeyword(fcn, args, kwargs, sourcepath=self.sourcepath, linestart=node.linestart)
+        return (self.n(node[0]), self.n(node[1]))
 
     def n_kv3(self, node):
         raise NotImplementedError(self.nameline('kv3', node))
@@ -1081,6 +1083,9 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('assert_expr_and', node))
 
     def n_ifstmt(self, node):
+        if node[1].kind == "return_if_stmts":
+            return rejig.syntaxtree.Const("FIXME")
+
         jump = node[0][0][1][0].attr
         alternate = self.find_offset(node[1], jump)[1]
         if alternate is None:
@@ -1242,7 +1247,9 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('whileelsestmt', node))
 
     def n_print_items_nl_stmt(self, node):
-        raise NotImplementedError(self.nameline('print_items_nl_stmt', node))
+        fcn = rejig.syntaxtree.Name("print", sourcepath=self.sourcepath, linestart=node.linestart)
+        args = [self.n(x) for x in node[:-3]]
+        return rejig.syntaxtree.Call(*([fcn] + args))
 
     def n_PRINT_ITEM_CONT(self, node):
         raise NotImplementedError(self.nameline('PRINT_ITEM_CONT', node))
