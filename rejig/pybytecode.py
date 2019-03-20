@@ -134,7 +134,7 @@ class BytecodeWalker(object):
         raise NotImplementedError("unrecognized node type: " + self.nameline(type(node).__name__ + (" " + repr(node.kind) if hasattr(node, "kind") else ""), node))
 
     def n_build_slice2(self, node):
-        return rejig.syntaxtree.Call("slice", self.n(node[0]), self.n(node[1]), sourcepath=self.sourcepath, linestart=node.linestart)
+        return rejig.syntaxtree.Call("slice", self.n(node[0]), self.n(node[1]), rejig.syntaxtree.Const(None, sourcepath=self.sourcepath, linestart=node.linestart), sourcepath=self.sourcepath, linestart=node.linestart)
 
     def n_build_slice3(self, node):
         return rejig.syntaxtree.Call("slice", self.n(node[0]), self.n(node[1]), self.n(node[2]), sourcepath=self.sourcepath, linestart=node.linestart)

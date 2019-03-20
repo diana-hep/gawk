@@ -64,7 +64,7 @@ class Call(AST):
         self.params = value
 
     def __repr__(self):
-        return "Call({0}, {1})".format(repr(self.fcn), ", ".join(repr(x) for x in self.args))
+        return "Call({0})".format(", ".join(repr(x) for x in (self.fcn,) + self.args))
 
     def __str__(self):
         if self.fcn == ".":
