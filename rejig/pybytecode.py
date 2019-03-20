@@ -653,11 +653,11 @@ class BytecodeWalker(object):
         elif node[-1].kind.startswith("BUILD_CONST_KEY_MAP_"):
             pairs = []
             for i, x in enumerate(node[:-2]):
-                pairs.append(node[-2].pattr[i])
+                pairs.append(rejig.syntaxtree.Const(node[-2].pattr[i], sourcepath=self.sourcepath, linestart=x.linestart))
                 pairs.append(self.n(x))
             return rejig.syntaxtree.Call("dict", *pairs, sourcepath=self.sourcepath, linestart=node.linestart)
         else:
-            raise NotImplementedError(self.nameline('dict', node))
+            raise NotImplementedError(self.nameline("dict", node))
 
     def n_and(self, node):
         args = [self.n(x) for x in node]

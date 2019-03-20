@@ -8,12 +8,7 @@ def check(what_is, what_should_be):
     else:
         exec("def f():\n    return " + what_is, env)
     ast = rejig.pybytecode.ast(env["f"])
-    print(repr(ast))
-    print(repr(what_should_be))
-    if what_should_be is None:
-        # print("check(''{0}'', {1})".format(repr(what_is), repr(ast)))
-        # return
-        raise NotImplementedError(repr(ast))
+    print(str(ast))
     assert ast == what_should_be, repr(ast)
 
 check('"hello"', Suite((Call('return', Const('hello')),)))
@@ -506,40 +501,40 @@ check('''a and b and c and d and e''', Suite((Call('return', Call('and', Name('a
 check("def g(x): return 3.14", Suite((Assign((Name('g'),), Def(('x',), (), Suite((Call('return', Const(3.14)),)))), Call('return', Const(None)),)))
 check("""def g(x):
     return 3.14""", Suite((Assign((Name('g'),), Def(('x',), (), Suite((Call('return', Const(3.14)),)))), Call('return', Const(None)),)))
-check("def g(x, y): return x**2", None)
+check("def g(x, y): return x**2", Suite((Assign((Name('g'),), Def(('x', 'y'), (), Suite((Call('return', Call('**', Name('x'), Const(2))),)))), Call('return', Const(None)),)))
 check("""def g(x, y):
-    return x**2""", None)
-check("lambda: 3.14", None)
-check("lambda x: x**2", None)
-check("return (lambda x: x**2, None)", None)
+    return x**2""", Suite((Assign((Name('g'),), Def(('x', 'y'), (), Suite((Call('return', Call('**', Name('x'), Const(2))),)))), Call('return', Const(None)),)))
+check("lambda: 3.14", Suite((Call('return', Def((), (), Suite((Call('return', Const(3.14)),)))),)))
+check("lambda x: x**2", Suite((Call('return', Def(('x',), (), Suite((Call('return', Call('**', Name('x'), Const(2))),)))),)))
+check("(lambda x: x**2, None)", Suite((Call('return', Call('tuple', Def(('x',), (), Suite((Call('return', Call('**', Name('x'), Const(2))),))), Const(None))),)))
 
-check("1 if x == 0 else 2", None)
-check("y = (1 if x == 0 else 2, None)", None)
-check("1 if x == 0 else None", None)
-check("return (1 if x == 0 else 2, None)", None)
-check("return (1 if x == 0 else None, None)", None)
+check("1 if x == 0 else 2", Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Call('return', Const(1)),)), Suite((Call('return', Const(2)),))),)))
+check("y = (1 if x == 0 else 2, None)", Suite((Assign((Name('y'),), Call('tuple', Call('?', Call('==', Name('x'), Const(0)), Const(1), Const(2)), Const(None))), Call('return', Const(None)),)))
+check("1 if x == 0 else None", Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Call('return', Const(1)),)), Suite((Call('return', Const(None)),))),)))
+check("(1 if x == 0 else 2, None)", Suite((Call('return', Call('tuple', Call('?', Call('==', Name('x'), Const(0)), Const(1), Const(2)), Const(None))),)))
+check("(1 if x == 0 else None, None)", Suite((Call('return', Call('tuple', Call('?', Call('==', Name('x'), Const(0)), Const(1), Const(None)), Const(None))),)))
 check("""if x == 0:
-    return 1""", None)
+    return 1""", Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Call('return', Const(1)),)), Suite((Call('return', Const(None)),))),)))
 check("""if x == 0:
     y = 1
-    return 1""", None)
-check("""if x == 0:
+    return 1""", Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)), Call('return', Const(1)),)), Suite((Call('return', Const(None)),))),)))
+check('''if x == 0:
     return 1
 else:
-    return 2""", None)
-check("""if x == 0:
+    return 2''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Call('return', Const(1)),)), Suite((Call('return', Const(2)),))),)))
+check('''if x == 0:
     y = 1
     return 1
 else:
     y = 2
-    return 2""", None)
-check("""if x == 0:
+    return 2''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)), Call('return', Const(1)),)), Suite((Assign((Name('y'),), Const(2)),))),)))
+check('''if x == 0:
     return 1
 elif x == 1:
     return 2
 else:
-    return 3""", None)
-check("""if x == 0:
+    return 3''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Call('return', Const(1)),)), Suite((Call('if', Call('==', Name('x'), Const(1)), Suite((Call('return', Const(2)),)), Suite((Call('return', Const(3)),))),))),)))
+check('''if x == 0:
     y = 1
     return 1
 elif x == 1:
@@ -547,29 +542,29 @@ elif x == 1:
     return 2
 else:
     y = 3
-    return 3""", None)
-check("""if x == 0:
-    y = 1""", None)
-check("""if x == 0:
+    return 3''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)), Call('return', Const(1)),)), Suite((Call('if', Call('==', Name('x'), Const(1)), Suite((Assign((Name('y'),), Const(2)), Call('return', Const(2)),)), Suite((Assign((Name('y'),), Const(3)),))),))),)))
+check('''if x == 0:
+    y = 1''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)),))), Call('return', Const(None)),)))
+check('''if x == 0:
     y = 1
-    z = 1""", None)
-check("""if x == 0:
+    z = 1''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)), Assign((Name('z'),), Const(1)),))), Call('return', Const(None)),)))
+check('''if x == 0:
     y = 1
 else:
-    y = 2""", None)
-check("""if x == 0:
+    y = 2''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)),)), Suite((Assign((Name('y'),), Const(2)),))), Call('return', Const(None)),)))
+check('''if x == 0:
     y = 1
     z = 1
 else:
     y = 2
-    z = 2""", None)
-check("""if x == 0:
+    z = 2''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)), Assign((Name('z'),), Const(1)),)), Suite((Assign((Name('y'),), Const(2)), Assign((Name('z'),), Const(2)),))), Call('return', Const(None)),)))
+check('''if x == 0:
     y = 1
 elif x == 1:
     y = 2
 else:
-    y = 3""", None)
-check("""if x == 0:
+    y = 3''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)),)), Suite((Call('if', Call('==', Name('x'), Const(1)), Suite((Assign((Name('y'),), Const(2)),)), Suite((Assign((Name('y'),), Const(3)),))), Call('return', Const(None)),))),)))
+check('''if x == 0:
     y = 1
     z = 1
 elif x == 1:
@@ -577,129 +572,130 @@ elif x == 1:
     z = 2
 else:
     y = 3
-    z = 3""", None)
-check("print(, None)", None)
-check("print(1, None)", None)
-check("print(1, 2, 3, None)", None)
+    z = 3''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)), Assign((Name('z'),), Const(1)),)), Suite((Call('if', Call('==', Name('x'), Const(1)), Suite((Assign((Name('y'),), Const(2)), Assign((Name('z'),), Const(2)),)), Suite((Assign((Name('y'),), Const(3)), Assign((Name('z'),), Const(3)),))), Call('return', Const(None)),))),)))
 
-check("[]", None)
-check("[1]", None)
-check("[1, 2]", None)
-check("[one]", None)
-check("[one, two]", None)
-check("['one']", None)
-check("['one', 'two']", None)
-check("set([], None)", None)
-check("set([1], None)", None)
-check("set([1, 2], None)", None)
-check("set([one], None)", None)
-check("set([one, two], None)", None)
-check("set(['one'], None)", None)
-check("set(['one', 'two'], None)", None)
-check("{}", None)
-check("{1}", None)
-check("{1, 2}", None)
-check("{one}", None)
-check("{one, two}", None)
-check("{'one'}", None)
-check("{'one', 'two'}", None)
-check("{'x': 1}", None)
-check("{'x': 1, 'y': 2}", None)
-check("{'x': 1, 'y': 2, 'z': 3}", None)
-check("{'x': one}", None)
-check("{'x': one, 'y': two}", None)
-check("{'x': one, 'y': two, 'z': three}", None)
-check("{1: 1}", None)
-check("{1: 1, 2: 2}", None)
-check("{1: 1, 2: 2, 3: 3}", None)
-check("{1: one}", None)
-check("{1: one, 2: two}", None)
-check("{1: one, 2: two, 3: three}", None)
-check("{one: 1}", None)
-check("{one: 1, two: 2}", None)
-check("{one: 1, two: 2, three: 3}", None)
-check("{one: one}", None)
-check("{one: one, two: two}", None)
-check("{one: one, two: two, three: three}", None)
+check("print(None)", Suite((Call('return', Call(Name('print'), Const(None))),)))
+check("print(1, None)", Suite((Call('return', Call(Name('print'), Const(1), Const(None))),)))
+check("print(1, 2, 3, None)", Suite((Call('return', Call(Name('print'), Const(1), Const(2), Const(3), Const(None))),)))
 
-check("[x**2 for x in something]", None)
-check("[x**2 for x in something if x > 0]", None)
-check("[y**2 for x in something for y in x]", None)
-check("[y**2 for x in something for y in x if x > 0]", None)
-check("[y**2 for x in something for y in x if y > 0]", None)
-check("[y**2 for x in something if x for y in x if x > 0]", None)
+check("[]", Suite((Call('return', Call('list')),)))
+check("[1]", Suite((Call('return', Call('list', Const(1))),)))
+check("[1, 2]", Suite((Call('return', Call('list', Const(1), Const(2))),)))
+check("[one]", Suite((Call('return', Call('list', Name('one'))),)))
+check("[one, two]", Suite((Call('return', Call('list', Name('one'), Name('two'))),)))
+check("['one']", Suite((Call('return', Call('list', Const('one'))),)))
+check("['one', 'two']", Suite((Call('return', Call('list', Const('one'), Const('two'))),)))
+check("set([])", Suite((Call('return', Call(Name('set'), Call('list'))),)))
+check("set([1])", Suite((Call('return', Call(Name('set'), Call('list', Const(1)))),)))
+check("set([1, 2])", Suite((Call('return', Call(Name('set'), Call('list', Const(1), Const(2)))),)))
+check("set([one])", Suite((Call('return', Call(Name('set'), Call('list', Name('one')))),)))
+check("set([one, two])", Suite((Call('return', Call(Name('set'), Call('list', Name('one'), Name('two')))),)))
+check("set(['one'])", Suite((Call('return', Call(Name('set'), Call('list', Const('one')))),)))
+check("set(['one', 'two'])", Suite((Call('return', Call(Name('set'), Call('list', Const('one'), Const('two')))),)))
+check("{}", Suite((Call('return', Call('dict')),)))
+check("{1}", Suite((Call('return', Call('set', Const(1))),)))
+check("{1, 2}", Suite((Call('return', Call('set', Const(1), Const(2))),)))
+check("{one}", Suite((Call('return', Call('set', Name('one'))),)))
+check("{one, two}", Suite((Call('return', Call('set', Name('one'), Name('two'))),)))
+check("{'one'}", Suite((Call('return', Call('set', Const('one'))),)))
+check("{'one', 'two'}", Suite((Call('return', Call('set', Const('one'), Const('two'))),)))
+check("{'x': 1}", Suite((Call('return', Call('dict', Const('x'), Const(1))),)))
+check("{'x': 1, 'y': 2}", Suite((Call('return', Call('dict', Const('x'), Const(1), Const('y'), Const(2))),)))
+check("{'x': 1, 'y': 2, 'z': 3}", Suite((Call('return', Call('dict', Const('x'), Const(1), Const('y'), Const(2), Const('z'), Const(3))),)))
+check("{'x': one}", Suite((Call('return', Call('dict', Const('x'), Name('one'))),)))
+check("{'x': one, 'y': two}", Suite((Call('return', Call('dict', Const('x'), Name('one'), Const('y'), Name('two'))),)))
+check("{'x': one, 'y': two, 'z': three}", Suite((Call('return', Call('dict', Const('x'), Name('one'), Const('y'), Name('two'), Const('z'), Name('three'))),)))
+check("{1: 1}", Suite((Call('return', Call('dict', Const(1), Const(1))),)))
+check("{1: 1, 2: 2}", Suite((Call('return', Call('dict', Const(1), Const(1), Const(2), Const(2))),)))
+check("{1: 1, 2: 2, 3: 3}", Suite((Call('return', Call('dict', Const(1), Const(1), Const(2), Const(2), Const(3), Const(3))),)))
+check("{1: one}", Suite((Call('return', Call('dict', Const(1), Name('one'))),)))
+check("{1: one, 2: two}", Suite((Call('return', Call('dict', Const(1), Name('one'), Const(2), Name('two'))),)))
+check("{1: one, 2: two, 3: three}", Suite((Call('return', Call('dict', Const(1), Name('one'), Const(2), Name('two'), Const(3), Name('three'))),)))
+check("{one: 1}", Suite((Call('return', Call('dict', Name('one'), Const(1))),)))
+check("{one: 1, two: 2}", Suite((Call('return', Call('dict', Name('one'), Const(1), Name('two'), Const(2))),)))
+check("{one: 1, two: 2, three: 3}", Suite((Call('return', Call('dict', Name('one'), Const(1), Name('two'), Const(2), Name('three'), Const(3))),)))
+check("{one: one}", Suite((Call('return', Call('dict', Name('one'), Name('one'))),)))
+check("{one: one, two: two}", Suite((Call('return', Call('dict', Name('one'), Name('one'), Name('two'), Name('two'))),)))
+check("{one: one, two: two, three: three}", Suite((Call('return', Call('dict', Name('one'), Name('one'), Name('two'), Name('two'), Name('three'), Name('three'))),)))
 
-check("f([x**2 for x in something], None)", None)
-check("f([x**2 for x in something if x > 0], None)", None)
-check("f([y**2 for x in something for y in x], None)", None)
-check("f([y**2 for x in something for y in x if x > 0], None)", None)
-check("f([y**2 for x in something for y in x if y > 0], None)", None)
-check("f([y**2 for x in something if x for y in x if x > 0], None)", None)
+check("[x**2 for x in something]", Suite((Call('return', Call(Call('.', Name('something'), 'map'), Def(('x',), (), Suite((Call('return', Call('**', Name('x'), Const(2))),))))),)))
+check("[x**2 for x in something if x > 0]", Suite((Call('return', Call(Call('.', Call(Call('.', Name('something'), 'filter'), Def(('x',), (), Suite((Call('return', Call('>', Name('x'), Const(0))),)))), 'map'), Def(('x',), (), Suite((Call('return', Call('**', Name('x'), Const(2))),))))),)))
+check("[y**2 for x in something for y in x]", Suite((Call('return', Call(Call('.', Name('something'), 'map'), Def(('x',), (), Suite((Call('return', Call(Call('.', Name('x'), 'map'), Def(('y',), (), Suite((Call('return', Call('**', Name('y'), Const(2))),))))),))))),)))
+check("[y**2 for x in something for y in x if x > 0]", Suite((Call('return', Call(Call('.', Name('something'), 'map'), Def(('x',), (), Suite((Call('return', Call(Call('.', Call(Call('.', Name('x'), 'filter'), Def(('y',), (), Suite((Call('return', Call('>', Name('x'), Const(0))),)))), 'map'), Def(('y',), (), Suite((Call('return', Call('**', Name('y'), Const(2))),))))),))))),)))
+check("[y**2 for x in something for y in x if y > 0]", Suite((Call('return', Call(Call('.', Name('something'), 'map'), Def(('x',), (), Suite((Call('return', Call(Call('.', Call(Call('.', Name('x'), 'filter'), Def(('y',), (), Suite((Call('return', Call('>', Name('y'), Const(0))),)))), 'map'), Def(('y',), (), Suite((Call('return', Call('**', Name('y'), Const(2))),))))),))))),)))
+check("[y**2 for x in something if x for y in x if x > 0]", Suite((Call('return', Call(Call('.', Call(Call('.', Name('something'), 'filter'), Def(('x',), (), Suite((Call('return', Name('x')),)))), 'map'), Def(('x',), (), Suite((Call('return', Call(Call('.', Call(Call('.', Name('x'), 'filter'), Def(('y',), (), Suite((Call('return', Call('>', Name('x'), Const(0))),)))), 'map'), Def(('y',), (), Suite((Call('return', Call('**', Name('y'), Const(2))),))))),))))),)))
 
-check("f(x**2 for x in something, None)", None)
-check("f(x**2 for x in something if x > 0, None)", None)
-check("f(y**2 for x in something for y in x, None)", None)
-check("f(y**2 for x in something for y in x if x > 0, None)", None)
-check("f(y**2 for x in something for y in x if y > 0, None)", None)
-check("f(y**2 for x in something if x for y in x if x > 0, None)", None)
+check("f([x**2 for x in something], None)", Suite((Call('return', Call(Name('f'), Call(Call('.', Name('something'), 'map'), Def(('x',), (), Suite((Call('return', Call('**', Name('x'), Const(2))),)))), Const(None))),)))
+check("f([x**2 for x in something if x > 0], None)", Suite((Call('return', Call(Name('f'), Call(Call('.', Call(Call('.', Name('something'), 'filter'), Def(('x',), (), Suite((Call('return', Call('>', Name('x'), Const(0))),)))), 'map'), Def(('x',), (), Suite((Call('return', Call('**', Name('x'), Const(2))),)))), Const(None))),)))
+check("f([y**2 for x in something for y in x], None)", Suite((Call('return', Call(Name('f'), Call(Call('.', Name('something'), 'map'), Def(('x',), (), Suite((Call('return', Call(Call('.', Name('x'), 'map'), Def(('y',), (), Suite((Call('return', Call('**', Name('y'), Const(2))),))))),)))), Const(None))),)))
+check("f([y**2 for x in something for y in x if x > 0], None)", Suite((Call('return', Call(Name('f'), Call(Call('.', Name('something'), 'map'), Def(('x',), (), Suite((Call('return', Call(Call('.', Call(Call('.', Name('x'), 'filter'), Def(('y',), (), Suite((Call('return', Call('>', Name('x'), Const(0))),)))), 'map'), Def(('y',), (), Suite((Call('return', Call('**', Name('y'), Const(2))),))))),)))), Const(None))),)))
+check("f([y**2 for x in something for y in x if y > 0], None)", Suite((Call('return', Call(Name('f'), Call(Call('.', Name('something'), 'map'), Def(('x',), (), Suite((Call('return', Call(Call('.', Call(Call('.', Name('x'), 'filter'), Def(('y',), (), Suite((Call('return', Call('>', Name('y'), Const(0))),)))), 'map'), Def(('y',), (), Suite((Call('return', Call('**', Name('y'), Const(2))),))))),)))), Const(None))),)))
+check("f([y**2 for x in something if x for y in x if x > 0], None)", Suite((Call('return', Call(Name('f'), Call(Call('.', Call(Call('.', Name('something'), 'filter'), Def(('x',), (), Suite((Call('return', Name('x')),)))), 'map'), Def(('x',), (), Suite((Call('return', Call(Call('.', Call(Call('.', Name('x'), 'filter'), Def(('y',), (), Suite((Call('return', Call('>', Name('x'), Const(0))),)))), 'map'), Def(('y',), (), Suite((Call('return', Call('**', Name('y'), Const(2))),))))),)))), Const(None))),)))
 
-check("f(one=1, None)", None)
-check("f(one=1, two=2, None)", None)
-check("f(x, one=1, None)", None)
-check("f(x, one=1, two=2, None)", None)
+check("f((x**2 for x in something), None)", Suite((Call('return', Call(Name('f'), Call(Call('.', Name('something'), 'map'), Def(('x',), (), Suite((Call('return', Call('**', Name('x'), Const(2))),)))), Const(None))),)))
+check("f((x**2 for x in something if x > 0), None)", Suite((Call('return', Call(Name('f'), Call(Call('.', Call(Call('.', Name('something'), 'filter'), Def(('x',), (), Suite((Call('return', Call('>', Name('x'), Const(0))),)))), 'map'), Def(('x',), (), Suite((Call('return', Call('**', Name('x'), Const(2))),)))), Const(None))),)))
+check("f((y**2 for x in something for y in x), None)", Suite((Call('return', Call(Name('f'), Call(Call('.', Name('something'), 'map'), Def(('x',), (), Suite((Call('return', Call(Call('.', Name('x'), 'map'), Def(('y',), (), Suite((Call('return', Call('**', Name('y'), Const(2))),))))),)))), Const(None))),)))
+check("f((y**2 for x in something for y in x if x > 0), None)", Suite((Call('return', Call(Name('f'), Call(Call('.', Name('something'), 'map'), Def(('x',), (), Suite((Call('return', Call(Call('.', Call(Call('.', Name('x'), 'filter'), Def(('y',), (), Suite((Call('return', Call('>', Name('x'), Const(0))),)))), 'map'), Def(('y',), (), Suite((Call('return', Call('**', Name('y'), Const(2))),))))),)))), Const(None))),)))
+check("f((y**2 for x in something for y in x if y > 0), None)", Suite((Call('return', Call(Name('f'), Call(Call('.', Name('something'), 'map'), Def(('x',), (), Suite((Call('return', Call(Call('.', Call(Call('.', Name('x'), 'filter'), Def(('y',), (), Suite((Call('return', Call('>', Name('y'), Const(0))),)))), 'map'), Def(('y',), (), Suite((Call('return', Call('**', Name('y'), Const(2))),))))),)))), Const(None))),)))
+check("f((y**2 for x in something if x for y in x if x > 0), None)", Suite((Call('return', Call(Name('f'), Call(Call('.', Call(Call('.', Name('something'), 'filter'), Def(('x',), (), Suite((Call('return', Name('x')),)))), 'map'), Def(('x',), (), Suite((Call('return', Call(Call('.', Call(Call('.', Name('x'), 'filter'), Def(('y',), (), Suite((Call('return', Call('>', Name('x'), Const(0))),)))), 'map'), Def(('y',), (), Suite((Call('return', Call('**', Name('y'), Const(2))),))))),)))), Const(None))),)))
 
-check("x[..., :]", None)
+check("f(one=1)", Suite((Call('return', CallKeyword(Name('f'), (), (('one', Const(1)),))),)))
+check("f(one=1, two=2)", Suite((Call('return', CallKeyword(Name('f'), (), (('one', Const(1)), ('two', Const(2))))),)))
+check("f(x, one=1)", Suite((Call('return', CallKeyword(Name('f'), (Name('x'),), (('one', Const(1)),))),)))
+check("f(x, one=1, two=2)", Suite((Call('return', CallKeyword(Name('f'), (Name('x'),), (('one', Const(1)), ('two', Const(2))))),)))
 
-check('x = y = 1', None)
-check('x = y = z = 1', None)
-check('x, y = 1', None)
-check('x, y = z = 1', None)
-check('x = y, z = 1', None)
+check("x[..., :]", Suite((Call('return', Call('[.]', Name('x'), Const(Ellipsis), Call('slice', Const(None), Const(None), Const(None)))),)))
 
-check('x.a = y = 1', None)
-check('x.a = y = z = 1', None)
-check('x.a, y = 1', None)
-check('x.a, y = z = 1', None)
-check('x.a = y, z = 1', None)
+check('x = y = 1', Suite((Assign((Name('x'), Name('y')), Const(1)), Call('return', Const(None)),)))
+check('x = y = z = 1', Suite((Assign((Name('x'), Name('y'), Name('z')), Const(1)), Call('return', Const(None)),)))
+check('x, y = 1', Suite((Assign((Unpack((Name('x'), Name('y'))),), Const(1)), Call('return', Const(None)),)))
+check('x, y = z = 1', Suite((Assign((Unpack((Name('x'), Name('y'))), Name('z')), Const(1)), Call('return', Const(None)),)))
+check('x = y, z = 1', Suite((Assign((Name('x'), Unpack((Name('y'), Name('z')))), Const(1)), Call('return', Const(None)),)))
 
-check('x = y.a = 1', None)
-check('x = y.a = z = 1', None)
-check('x, y.a = 1', None)
-check('x, y.a = z = 1', None)
-check('x = y.a, z = 1', None)
+check('x.a = y = 1', Suite((Assign((Call('.', Name('x'), 'a'), Name('y'),), Const(1)), Call('return', Const(None)),)))
+check('x.a = y = z = 1', Suite((Assign((Call('.', Name('x'), 'a'), Name('y'), Name('z'),), Const(1)), Call('return', Const(None)),)))
+check('x.a, y = 1', Suite((Assign((Unpack((Call('.', Name('x'), 'a'), Name('y'))),), Const(1)), Call('return', Const(None)),)))
+check('x.a, y = z = 1', Suite((Assign((Unpack((Call('.', Name('x'), 'a'), Name('y'))), Name('z')), Const(1)), Call('return', Const(None)),)))
+check('x.a = y, z = 1', Suite((Assign((Call('.', Name('x'), 'a'), Unpack((Name('y'), Name('z')))), Const(1)), Call('return', Const(None)),)))
 
-check('x = y = z.a = 1', None)
-check('x, y = z.a = 1', None)
-check('x = y, z.a = 1', None)
+check('x = y.a = 1', Suite((Assign((Name('x'), Call('.', Name('y'), 'a'),), Const(1)), Call('return', Const(None)),)))
+check('x = y.a = z = 1', Suite((Assign((Name('x'), Call('.', Name('y'), 'a'), Name('z')), Const(1)), Call('return', Const(None)),)))
+check('x, y.a = 1', Suite((Assign((Unpack((Name('x'), Call('.', Name('y'), 'a'))),), Const(1)), Call('return', Const(None)),)))
+check('x, y.a = z = 1', Suite((Assign((Unpack((Name('x'), Call('.', Name('y'), 'a'))), Name('z')), Const(1)), Call('return', Const(None)),)))
+check('x = y.a, z = 1', Suite((Assign((Name('x'), Unpack((Call('.', Name('y'), 'a'), Name('z')))), Const(1)), Call('return', Const(None)),)))
 
-check('x[0] = y = 1', None)
-check('x[0] = y = z = 1', None)
-check('x[0], y = 1', None)
-check('x[0], y = z = 1', None)
-check('x[0] = y, z = 1', None)
+check('x = y = z.a = 1', Suite((Assign((Name('x'), Name('y'), Call('.', Name('z'), 'a'),), Const(1)), Call('return', Const(None)),)))
+check('x, y = z.a = 1', Suite((Assign((Unpack((Name('x'), Name('y'))), Call('.', Name('z'), 'a'),), Const(1)), Call('return', Const(None)),)))
+check('x = y, z.a = 1', Suite((Assign((Name('x'), Unpack((Name('y'), Call('.', Name('z'), 'a'))),), Const(1)), Call('return', Const(None)),)))
 
-check('x = y[0] = 1', None)
-check('x = y[0] = z = 1', None)
-check('x, y[0] = 1', None)
-check('x, y[0] = z = 1', None)
-check('x = y[0], z = 1', None)
+check('x[0] = y = 1', Suite((Assign((Call('[.]', Name('x'), Const(0)), Name('y'),), Const(1)), Call('return', Const(None)),)))
+check('x[0] = y = z = 1', Suite((Assign((Call('[.]', Name('x'), Const(0)), Name('y'), Name('z')), Const(1)), Call('return', Const(None)),)))
+check('x[0], y = 1', Suite((Assign((Unpack((Call('[.]', Name('x'), Const(0)), Name('y'),)),), Const(1)), Call('return', Const(None)),)))
+check('x[0], y = z = 1', Suite((Assign((Unpack((Call('[.]', Name('x'), Const(0)), Name('y'))), Name('z')), Const(1)), Call('return', Const(None)),)))
+check('x[0] = y, z = 1', Suite((Assign((Call('[.]', Name('x'), Const(0)), Unpack((Name('y'), Name('z')))), Const(1)), Call('return', Const(None)),)))
 
-check('x = y = z[0] = 1', None)
-check('x, y = z[0] = 1', None)
-check('x = y, z[0] = 1', None)
+check('x = y[0] = 1', Suite((Assign((Name('x'), Call('[.]', Name('y'), Const(0)),), Const(1)), Call('return', Const(None)),)))
+check('x = y[0] = z = 1', Suite((Assign((Name('x'), Call('[.]', Name('y'), Const(0)), Name('z')), Const(1)), Call('return', Const(None)),)))
+check('x, y[0] = 1', Suite((Assign((Unpack((Name('x'), Call('[.]', Name('y'), Const(0)))),), Const(1)), Call('return', Const(None)),)))
+check('x, y[0] = z = 1', Suite((Assign((Unpack((Name('x'), Call('[.]', Name('y'), Const(0)))), Name('z')), Const(1)), Call('return', Const(None)),)))
+check('x = y[0], z = 1', Suite((Assign((Name('x'), Unpack((Call('[.]', Name('y'), Const(0)), Name('z')))), Const(1)), Call('return', Const(None)),)))
 
-check('x[:, ...] = y = 1', None)
-check('x[:, ...] = y = z = 1', None)
-check('x[:, ...], y = 1', None)
-check('x[:, ...], y = z = 1', None)
-check('x[:, ...] = y, z = 1', None)
+check('x = y = z[0] = 1', Suite((Assign((Name('x'), Name('y'), Call('[.]', Name('z'), Const(0)),), Const(1)), Call('return', Const(None)),)))
+check('x, y = z[0] = 1', Suite((Assign((Unpack((Name('x'), Name('y'))), Call('[.]', Name('z'), Const(0)),), Const(1)), Call('return', Const(None)),)))
+check('x = y, z[0] = 1', Suite((Assign((Name('x'), Unpack((Name('y'), Call('[.]', Name('z'), Const(0)))),), Const(1)), Call('return', Const(None)),)))
 
-check('x = y[:, ...] = 1', None)
-check('x = y[:, ...] = z = 1', None)
-check('x, y[:, ...] = 1', None)
-check('x, y[:, ...] = z = 1', None)
-check('x = y[:, ...], z = 1', None)
+check('x[:, ...] = y = 1', Suite((Assign((Call('[.]', Name('x'), Call('slice', Const(None), Const(None), Const(None)), Const(Ellipsis)), Name('y'),), Const(1)), Call('return', Const(None)),)))
+check('x[:, ...] = y = z = 1', Suite((Assign((Call('[.]', Name('x'), Call('slice', Const(None), Const(None), Const(None)), Const(Ellipsis)), Name('y'), Name('z')), Const(1)), Call('return', Const(None)),)))
+check('x[:, ...], y = 1', Suite((Assign((Unpack((Call('[.]', Name('x'), Call('slice', Const(None), Const(None), Const(None)), Const(Ellipsis)), Name('y'))),), Const(1)), Call('return', Const(None)),)))
+check('x[:, ...], y = z = 1', Suite((Assign((Unpack((Call('[.]', Name('x'), Call('slice', Const(None), Const(None), Const(None)), Const(Ellipsis)), Name('y'))), Name('z')), Const(1)), Call('return', Const(None)),)))
+check('x[:, ...] = y, z = 1', Suite((Assign((Call('[.]', Name('x'), Call('slice', Const(None), Const(None), Const(None)), Const(Ellipsis)), Unpack((Name('y'), Name('z')))), Const(1)), Call('return', Const(None)),)))
 
-check('x = y = z[:, ...] = 1', None)
-check('x, y = z[:, ...] = 1', None)
-check('x = y, z[:, ...] = 1', None)
+check('x = y[:, ...] = 1', Suite((Assign((Name('x'), Call('[.]', Name('y'), Call('slice', Const(None), Const(None), Const(None)), Const(Ellipsis)),), Const(1)), Call('return', Const(None)),)))
+check('x = y[:, ...] = z = 1', Suite((Assign((Name('x'), Call('[.]', Name('y'), Call('slice', Const(None), Const(None), Const(None)), Const(Ellipsis)), Name('z')), Const(1)), Call('return', Const(None)),)))
+check('x, y[:, ...] = 1', Suite((Assign((Unpack((Name('x'), Call('[.]', Name('y'), Call('slice', Const(None), Const(None), Const(None)), Const(Ellipsis)))),), Const(1)), Call('return', Const(None)),)))
+check('x, y[:, ...] = z = 1', Suite((Assign((Unpack((Name('x'), Call('[.]', Name('y'), Call('slice', Const(None), Const(None), Const(None)), Const(Ellipsis)))), Name('z')), Const(1)), Call('return', Const(None)),)))
+check('x = y[:, ...], z = 1', Suite((Assign((Name('x'), Unpack((Call('[.]', Name('y'), Call('slice', Const(None), Const(None), Const(None)), Const(Ellipsis)), Name('z')))), Const(1)), Call('return', Const(None)),)))
+
+check('x = y = z[:, ...] = 1', Suite((Assign((Name('x'), Name('y'), Call('[.]', Name('z'), Call('slice', Const(None), Const(None), Const(None)), Const(Ellipsis)),), Const(1)), Call('return', Const(None)),)))
+check('x, y = z[:, ...] = 1', Suite((Assign((Unpack((Name('x'), Name('y'))), Call('[.]', Name('z'), Call('slice', Const(None), Const(None), Const(None)), Const(Ellipsis)),), Const(1)), Call('return', Const(None)),)))
+check('x = y, z[:, ...] = 1', Suite((Assign((Name('x'), Unpack((Name('y'), Call('[.]', Name('z'), Call('slice', Const(None), Const(None), Const(None)), Const(Ellipsis)))),), Const(1)), Call('return', Const(None)),)))
