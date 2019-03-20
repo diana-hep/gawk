@@ -140,7 +140,7 @@ class Def(AST):
         return self.params[2]
 
     def __repr__(self):
-        return "Def(({0}), ({1}), ({2}))".format(" ".join(repr(x) + "," for x in self.argnames), " ".join(repr(x) + "," for x in self.defaults), " ".join(repr(x) + "," for x in self.body.body))
+        return "Def(({0}), ({1}), {2})".format(" ".join(repr(x) + "," for x in self.argnames), " ".join(repr(x) + "," for x in self.defaults), repr(self.body))
 
     def __str__(self):
         if len(self.defaults) == 0:
