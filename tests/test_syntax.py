@@ -1,9 +1,6 @@
 import rejig.pybytecode
 from rejig.syntaxtree import *
 
-failed = 0
-total = 0
-
 def check(what_is, what_should_be):
     global failed, total
     env = {}
@@ -13,10 +10,7 @@ def check(what_is, what_should_be):
         exec("def f():\n    return " + what_is, env)
     ast = rejig.pybytecode.ast(env["f"])
     print(str(ast))
-    # assert ast == what_should_be, repr(ast)
-    if ast != what_should_be:
-        failed += 1
-    total += 1
+    assert ast == what_should_be, "\nshould be: " + repr(what_should_be) + "\nyet it is: " + repr(ast)
 
 check('"hello"', Suite((Call('return', Const('hello')),)))
 check('''.3''', Suite((Call('return', Const(.3)),)))
@@ -706,5 +700,3 @@ check('x = y[:, ...], z = 1', Suite((Assign((Name('x'), Unpack((Call('[.]', Name
 check('x = y = z[:, ...] = 1', Suite((Assign((Name('x'), Name('y'), Call('[.]', Name('z'), Call('slice', Const(None), Const(None), Const(None)), Const(Ellipsis)),), Const(1)), Call('return', Const(None)),)))
 check('x, y = z[:, ...] = 1', Suite((Assign((Unpack((Name('x'), Name('y'))), Call('[.]', Name('z'), Call('slice', Const(None), Const(None), Const(None)), Const(Ellipsis)),), Const(1)), Call('return', Const(None)),)))
 check('x = y, z[:, ...] = 1', Suite((Assign((Name('x'), Unpack((Name('y'), Call('[.]', Name('z'), Call('slice', Const(None), Const(None), Const(None)), Const(Ellipsis)))),), Const(1)), Call('return', Const(None)),)))
-
-print("failed", failed, "total", total)

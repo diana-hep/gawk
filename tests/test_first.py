@@ -1,7 +1,7 @@
 import rejig.pybytecode
 
 def testme(x):
-    return {one: one, two: two}
+    return "a" if x == 0 else "b"
 
 print(rejig.pybytecode.ast(testme))
 

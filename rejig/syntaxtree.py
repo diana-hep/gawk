@@ -164,6 +164,10 @@ class Suite(AST):
     def body(self):
         return self.params
 
+    @body.setter
+    def body(self, value):
+        self.params = value
+
     def __repr__(self):
         return "Suite(({0}))".format(" ".join(repr(x) + "," for x in self.body))
 

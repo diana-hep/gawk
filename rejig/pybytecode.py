@@ -95,13 +95,16 @@ class BytecodeWalker(object):
         else:
             return rejig.syntaxtree.Const(value, sourcepath=sourcepath, linestart=linestart)
 
-    def make_suite(self, node):
+    def make_suite(self, node, sourcepath, linestart):
         suite = []
-        for x in node:
-            suite.append(self.n(x))
+        for i in range(len(node)):
+            suite.append(self.n(node[i]))
             if isinstance(suite[-1], rejig.syntaxtree.Call) and suite[-1].fcn == "return":
                 break
-        return rejig.syntaxtree.Suite(tuple(suite), sourcepath=self.sourcepath, linestart=node.linestart)
+            elif isinstance(suite[-1], rejig.syntaxtree.Call) and suite[-1].fcn == "if" and len(suite[-1].args) == 2 and any(isinstance(x, rejig.syntaxtree.Call) and x.fcn == "return" for x in suite[-1].args[1].body):
+                suite[-1].args = suite[-1].args + (self.make_suite(node[i + 1 :], sourcepath, linestart),)
+                break
+        return rejig.syntaxtree.Suite(tuple(suite), sourcepath=sourcepath, linestart=linestart)
 
     def make_comp(self, source, loops):
         if len(loops) == 1:
@@ -531,7 +534,14 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('LIST_APPEND', node))
 
     def n_LOAD_FAST(self, node):
-        return rejig.syntaxtree.Name(node.pattr, sourcepath=self.sourcepath, linestart=node.linestart)
+        if node.pattr == "None":
+            return rejig.syntaxtree.Const(None, sourcepath=self.sourcepath, linestart=node.linestart)
+        elif node.pattr == "True":
+            return rejig.syntaxtree.Const(True, sourcepath=self.sourcepath, linestart=node.linestart)
+        elif node.pattr == "False":
+            return rejig.syntaxtree.Const(False, sourcepath=self.sourcepath, linestart=node.linestart)
+        else:
+            return rejig.syntaxtree.Name(node.pattr, sourcepath=self.sourcepath, linestart=node.linestart)
 
     def n_comp_for(self, node):
         raise NotImplementedError(self.nameline('comp_for', node))
@@ -638,7 +648,14 @@ class BytecodeWalker(object):
         return self.make_const(node.pattr, self.sourcepath, node.linestart)
 
     def n_LOAD_GLOBAL(self, node):
-        return rejig.syntaxtree.Name(node.pattr, sourcepath=self.sourcepath, linestart=node.linestart)
+        if node.pattr == "None":
+            return rejig.syntaxtree.Const(None, sourcepath=self.sourcepath, linestart=node.linestart)
+        elif node.pattr == "True":
+            return rejig.syntaxtree.Const(True, sourcepath=self.sourcepath, linestart=node.linestart)
+        elif node.pattr == "False":
+            return rejig.syntaxtree.Const(False, sourcepath=self.sourcepath, linestart=node.linestart)
+        else:
+            return rejig.syntaxtree.Name(node.pattr, sourcepath=self.sourcepath, linestart=node.linestart)
 
     def n_LOAD_DEREF(self, node):
         raise NotImplementedError(self.nameline('LOAD_DEREF', node))
@@ -676,7 +693,10 @@ class BytecodeWalker(object):
         return rejig.syntaxtree.Call("or", *[x for x in args if x is not None], sourcepath=self.sourcepath, linestart=node.linestart)
 
     def n_unary_expr(self, node):
-        return rejig.syntaxtree.Call(self.n(node[1]), self.n(node[0]), sourcepath=self.sourcepath, linestart=node.linestart)
+        if node[1].kind == "unary_op" and node[1][0].kind == "UNARY_POSITIVE" and node[0][0].kind == "LOAD_CONST":
+            return self.n(node[0])
+        else:
+            return rejig.syntaxtree.Call(self.n(node[1]), self.n(node[0]), sourcepath=self.sourcepath, linestart=node.linestart)
 
     def n_call(self, node):
         if any(x.kind == "kwarg" for x in node):
@@ -843,10 +863,10 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('LOAD_ASSERT', node))
 
     def n_slice0(self, node):
-        return rejig.syntaxtree.Call("slice", rejig.syntaxtree.Const(None, sourcepath=self.sourcepath, linestart=node.linestart), rejig.syntaxtree.Const(None, sourcepath=self.sourcepath, linestart=node.linestart), rejig.syntaxtree.Const(None, sourcepath=self.sourcepath, linestart=node.linestart), sourcepath=self.sourcepath, linestart=node.linestart)
+        return rejig.syntaxtree.Call("[.]", self.n(node[0]), rejig.syntaxtree.Call("slice", rejig.syntaxtree.Const(None, sourcepath=self.sourcepath, linestart=node.linestart), rejig.syntaxtree.Const(None, sourcepath=self.sourcepath, linestart=node.linestart), rejig.syntaxtree.Const(None, sourcepath=self.sourcepath, linestart=node.linestart), sourcepath=self.sourcepath, linestart=node.linestart), sourcepath=self.sourcepath, linestart=node.linestart)
 
     def n_slice1(self, node):
-        return rejig.syntaxtree.Call("slice", rejig.syntaxtree.Const(None, sourcepath=self.sourcepath, linestart=node.linestart), self.n(node[0]), rejig.syntaxtree.Const(None, sourcepath=self.sourcepath, linestart=node.linestart), sourcepath=self.sourcepath, linestart=node.linestart)
+        return rejig.syntaxtree.Call("[.]", self.n(node[0]), rejig.syntaxtree.Call("slice", self.n(node[1]), rejig.syntaxtree.Const(None, sourcepath=self.sourcepath, linestart=node.linestart), rejig.syntaxtree.Const(None, sourcepath=self.sourcepath, linestart=node.linestart), sourcepath=self.sourcepath, linestart=node.linestart), sourcepath=self.sourcepath, linestart=node.linestart)
 
     def n_slice2(self, node):
         '''
@@ -869,10 +889,10 @@ class BytecodeWalker(object):
         slice3 ::= expr expr expr SLICE+3
         slice3 ::= expr expr expr DUP_TOPX_3 SLICE+3
         '''
-        return rejig.syntaxtree.Call("slice", self.n(node[0]), self.n(node[1]), rejig.syntaxtree.Const(None, sourcepath=self.sourcepath, linestart=node.linestart), sourcepath=self.sourcepath, linestart=node.linestart)
+        return rejig.syntaxtree.Call("[.]", self.n(node[0]), rejig.syntaxtree.Call("slice", rejig.syntaxtree.Const(None, sourcepath=self.sourcepath, linestart=node.linestart), self.n(node[1]), rejig.syntaxtree.Const(None, sourcepath=self.sourcepath, linestart=node.linestart), sourcepath=self.sourcepath, linestart=node.linestart), sourcepath=self.sourcepath, linestart=node.linestart)
 
     def n_slice3(self, node):
-        return rejig.syntaxtree.Call("slice", self.n(node[0]), self.n(node[1]), self.n(node[2]), sourcepath=self.sourcepath, linestart=node.linestart)
+        return rejig.syntaxtree.Call("[.]", self.n(node[0]), rejig.syntaxtree.Call("slice", self.n(node[1]), self.n(node[2]), rejig.syntaxtree.Const(None, sourcepath=self.sourcepath, linestart=node.linestart), sourcepath=self.sourcepath, linestart=node.linestart), sourcepath=self.sourcepath, linestart=node.linestart)
 
     def n_unary_convert(self, node):
         raise NotImplementedError(self.nameline('unary_convert', node))
@@ -965,10 +985,12 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('RETURN_LAST', node))
 
     def n_return_if_stmts(self, node):
-        raise NotImplementedError(self.nameline('return_if_stmts', node))
+        out = self.make_suite(node, self.sourcepath, node.linestart)
+        out.body = out.body[:-1] + (rejig.syntaxtree.Call("return", out.body[-1], sourcepath=self.sourcepath, linestart=node.linestart),)
+        return out
 
     def n_return_if_stmt(self, node):
-        raise NotImplementedError(self.nameline('return_if_stmt', node))
+        return self.n(node[0])
 
     def n__stmts(self, node):
         raise NotImplementedError(self.nameline('_stmts', node))
@@ -1049,7 +1071,7 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('DELETE_ATTR', node))
 
     def n_kwarg(self, node):
-        return (self.n(node[0]), self.n(node[1]))
+        return (node[0].pattr, self.n(node[1]))
 
     def n_kv3(self, node):
         return self.n(node[0]), self.n(node[1])
@@ -1089,17 +1111,17 @@ class BytecodeWalker(object):
 
     def n_ifstmt(self, node):
         if node[1].kind == "return_if_stmts":
-            return rejig.syntaxtree.Const("FIXME")
-
-        jump = node[0][0][1][0].attr
-        alternate = self.find_offset(node[1], jump)[1]
-        if alternate is None:
             return rejig.syntaxtree.Call("if", self.n(node[0]), self.n(node[1]), sourcepath=self.sourcepath, linestart=node.linestart)
         else:
-            alternate = self.n(alternate)
-            if not isinstance(alternate, rejig.syntaxtree.Suite):
-                alternate = rejig.syntaxtree.Suite((alternate,), sourcepath=self.sourcepath, linestart=node.linestart)
-            return rejig.syntaxtree.Call("if", self.n(node[0]), self.n(node[1]), alternate, sourcepath=self.sourcepath, linestart=node.linestart)
+            jump = node[0][0][1][0].attr
+            alternate = self.find_offset(node[1], jump)[1]
+            if alternate is None:
+                return rejig.syntaxtree.Call("if", self.n(node[0]), self.n(node[1]), sourcepath=self.sourcepath, linestart=node.linestart)
+            else:
+                alternate = self.n(alternate)
+                if not isinstance(alternate, rejig.syntaxtree.Suite):
+                    alternate = rejig.syntaxtree.Suite((alternate,), sourcepath=self.sourcepath, linestart=node.linestart)
+                return rejig.syntaxtree.Call("if", self.n(node[0]), self.n(node[1]), alternate, sourcepath=self.sourcepath, linestart=node.linestart)
 
     def n_testexpr(self, node):
         return self.n(node[0])
@@ -1278,7 +1300,7 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('THEN', node))
 
     def n_stmts(self, node):
-        return self.make_suite(node)
+        return self.make_suite(node, self.sourcepath, node.linestart)
 
     def n__while1test(self, node):
         raise NotImplementedError(self.nameline('_while1test', node))
@@ -1299,7 +1321,7 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('_ifstmts_jump24', node))
 
     def n_suite_stmts(self, node):
-        return self.make_suite(node)
+        return self.make_suite(node, self.sourcepath, node.linestart)
 
     def n_kv2(self, node):
         raise NotImplementedError(self.nameline('kv2', node))
@@ -1439,7 +1461,7 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('pass', node))
 
     def n_c_stmts(self, node):
-        return self.make_suite(node)
+        return self.make_suite(node, self.sourcepath, node.linestart)
 
     def n_ifelsestmtc(self, node):
         raise NotImplementedError(self.nameline('ifelsestmtc', node))
