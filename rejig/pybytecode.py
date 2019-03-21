@@ -1,5 +1,6 @@
 import sys
 import types
+import numbers
 
 import spark_parser
 import uncompyle6.parser
@@ -68,16 +69,25 @@ class BytecodeWalker(object):
             return True, node if isinstance(node.offset, int) and node.offset >= offset else None
         else:
             first = True
-            for x in node:
-                subfirst, subnode = self.find_offset(x, offset)
+            for i in range(len(node)):
+                subfirst, subnode = self.find_offset(node[i], offset)
                 if subnode is not None:
                     if first and subfirst:
                         return True, node
+                    elif subnode is node[i]:
+                        return False, node[i:]
                     else:
                         return False, subnode
                 first = False
             else:
                 return False, None
+
+    def no_unary_plus(self, node):
+        if isinstance(node, rejig.syntaxtree.Call) and node.fcn == "u+" and isinstance(node.args[0], rejig.syntaxtree.Const) and isinstance(node.args[0].value, numbers.Number):
+            return node.args[0]
+        elif isinstance(node, rejig.syntaxtree.Call) and node.fcn == "u+":
+            node.args = tuple(self.no_unary_plus(x) for x in node.args)
+        return node
 
     def make_const(self, value, sourcepath, linestart):
         if isinstance(value, tuple):
@@ -98,7 +108,17 @@ class BytecodeWalker(object):
     def make_suite(self, node, sourcepath, linestart):
         suite = []
         for i in range(len(node)):
-            suite.append(self.n(node[i]))
+            if node[i].kind == "_stmts":
+                for x in node[i]:
+                    suite.append(self.n(x))
+            else:
+                suite.append(self.n(node[i]))
+
+            if isinstance(suite[-1], rejig.syntaxtree.Suite):
+                suite, flatten = suite[:-1], suite[-1]
+                for x in flatten:
+                    suite.append(x)
+
             if isinstance(suite[-1], rejig.syntaxtree.Call) and suite[-1].fcn == "return":
                 break
             elif isinstance(suite[-1], rejig.syntaxtree.Call) and suite[-1].fcn == "if" and len(suite[-1].args) == 2 and any(isinstance(x, rejig.syntaxtree.Call) and x.fcn == "return" for x in suite[-1].args[1].body):
@@ -514,7 +534,10 @@ class BytecodeWalker(object):
             if node[0].kind == "lc_body":
                 body = self.n(node[0][0])
                 out = out + (body,)
-                return out
+                if self.pyversion < 3:
+                    return self.make_comp(out[0], out)
+                else:
+                    return out
             else:
                 node = node[0]
 
@@ -693,10 +716,7 @@ class BytecodeWalker(object):
         return rejig.syntaxtree.Call("or", *[x for x in args if x is not None], sourcepath=self.sourcepath, linestart=node.linestart)
 
     def n_unary_expr(self, node):
-        if node[1].kind == "unary_op" and node[1][0].kind == "UNARY_POSITIVE" and node[0][0].kind == "LOAD_CONST":
-            return self.n(node[0])
-        else:
-            return rejig.syntaxtree.Call(self.n(node[1]), self.n(node[0]), sourcepath=self.sourcepath, linestart=node.linestart)
+        return self.no_unary_plus(rejig.syntaxtree.Call(self.n(node[1]), self.n(node[0]), sourcepath=self.sourcepath, linestart=node.linestart))
 
     def n_call(self, node):
         if any(x.kind == "kwarg" for x in node):
@@ -1074,7 +1094,7 @@ class BytecodeWalker(object):
         return (node[0].pattr, self.n(node[1]))
 
     def n_kv3(self, node):
-        return self.n(node[0]), self.n(node[1])
+        return self.n(node[1]), self.n(node[0])
 
     def n_STORE_MAP(self, node):
         raise NotImplementedError(self.nameline('STORE_MAP', node))
@@ -1118,9 +1138,7 @@ class BytecodeWalker(object):
             if alternate is None:
                 return rejig.syntaxtree.Call("if", self.n(node[0]), self.n(node[1]), sourcepath=self.sourcepath, linestart=node.linestart)
             else:
-                alternate = self.n(alternate)
-                if not isinstance(alternate, rejig.syntaxtree.Suite):
-                    alternate = rejig.syntaxtree.Suite((alternate,), sourcepath=self.sourcepath, linestart=node.linestart)
+                alternate = self.make_suite(alternate, self.sourcepath, node.linestart)
                 return rejig.syntaxtree.Call("if", self.n(node[0]), self.n(node[1]), alternate, sourcepath=self.sourcepath, linestart=node.linestart)
 
     def n_testexpr(self, node):

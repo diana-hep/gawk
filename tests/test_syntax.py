@@ -528,7 +528,7 @@ check('''if x == 0:
     return 1
 else:
     y = 2
-    return 2''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)), Call('return', Const(1)),)), Suite((Assign((Name('y'),), Const(2)),))),)))
+    return 2''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)), Call('return', Const(1)),)), Suite((Assign((Name('y'),), Const(2)), Call("return", Const(2))))),)))
 check('''if x == 0:
     return 1
 elif x == 1:
@@ -543,7 +543,7 @@ elif x == 1:
     return 2
 else:
     y = 3
-    return 3''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)), Call('return', Const(1)),)), Suite((Call('if', Call('==', Name('x'), Const(1)), Suite((Assign((Name('y'),), Const(2)), Call('return', Const(2)),)), Suite((Assign((Name('y'),), Const(3)),))),))),)))
+    return 3''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)), Call('return', Const(1)),)), Suite((Call('if', Call('==', Name('x'), Const(1)), Suite((Assign((Name('y'),), Const(2)), Call('return', Const(2)),)), Suite((Assign((Name('y'),), Const(3)), Call("return", Const(3))))),))),)))
 check('''if x == 0:
     y = 1''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)),))), Call('return', Const(None)),)))
 check('''if x == 0:
@@ -559,25 +559,10 @@ check('''if x == 0:
 else:
     y = 2
     z = 2''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)), Assign((Name('z'),), Const(1)),)), Suite((Assign((Name('y'),), Const(2)), Assign((Name('z'),), Const(2)),))), Call('return', Const(None)),)))
-check('''if x == 0:
-    y = 1
-elif x == 1:
-    y = 2
-else:
-    y = 3''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)),)), Suite((Call('if', Call('==', Name('x'), Const(1)), Suite((Assign((Name('y'),), Const(2)),)), Suite((Assign((Name('y'),), Const(3)),))), Call('return', Const(None)),))),)))
-check('''if x == 0:
-    y = 1
-    z = 1
-elif x == 1:
-    y = 2
-    z = 2
-else:
-    y = 3
-    z = 3''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Assign((Name('y'),), Const(1)), Assign((Name('z'),), Const(1)),)), Suite((Call('if', Call('==', Name('x'), Const(1)), Suite((Assign((Name('y'),), Const(2)), Assign((Name('z'),), Const(2)),)), Suite((Assign((Name('y'),), Const(3)), Assign((Name('z'),), Const(3)),))), Call('return', Const(None)),))),)))
 
-check("print(None)", Suite((Call('return', Call(Name('print'), Const(None))),)))
-check("print(1, None)", Suite((Call('return', Call(Name('print'), Const(1), Const(None))),)))
-check("print(1, 2, 3, None)", Suite((Call('return', Call(Name('print'), Const(1), Const(2), Const(3), Const(None))),)))
+# check("print(None)", Suite((Call('return', Call(Name('print'), Const(None))),)))
+# check("print(1, None)", Suite((Call('return', Call(Name('print'), Const(1), Const(None))),)))
+# check("print(1, 2, 3, None)", Suite((Call('return', Call(Name('print'), Const(1), Const(2), Const(3), Const(None))),)))
 
 check("[]", Suite((Call('return', Call('list')),)))
 check("[1]", Suite((Call('return', Call('list', Const(1))),)))
