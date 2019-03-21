@@ -598,7 +598,12 @@ class BytecodeWalker(object):
 
         genexpr_func ::= LOAD_FAST FOR_ITER store comp_iter JUMP_BACK
         '''
-        source = self.n(node[3])
+        if node[3].kind == "GET_ITER":
+            source = self.n(node[2])
+        elif node[4].kind == "GET_ITER":
+            source = self.n(node[3])
+        else:
+            raise NotImplementedError('generator_exp', node)
         loops = ast(self.n(node[0]), linestart=node.linestart).params[0]
         return self.make_comp(source, loops)
 
@@ -657,10 +662,10 @@ class BytecodeWalker(object):
                 pairs.append(self.n(x))
             return rejig.syntaxtree.Call("dict", *pairs, sourcepath=self.sourcepath, linestart=node.linestart)
         else:
-            print(node)
-
-
-            raise NotImplementedError(self.nameline("dict", node))
+            pairs = []
+            for pair in node[1:]:
+                pairs.extend(self.n(pair))
+            return rejig.syntaxtree.Call("dict", *pairs, sourcepath=self.sourcepath, linestart=node.linestart)
 
     def n_and(self, node):
         args = [self.n(x) for x in node]
@@ -1047,7 +1052,7 @@ class BytecodeWalker(object):
         return (self.n(node[0]), self.n(node[1]))
 
     def n_kv3(self, node):
-        raise NotImplementedError(self.nameline('kv3', node))
+        return self.n(node[0]), self.n(node[1])
 
     def n_STORE_MAP(self, node):
         raise NotImplementedError(self.nameline('STORE_MAP', node))
