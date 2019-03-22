@@ -66,6 +66,7 @@ for cls in [Python13Parser, Python13ParserSingle, Python14Parser, Python14Parser
 
 print(r"""import sys
 import types
+import numbers
 
 import spark_parser
 import uncompyle6.parser
@@ -134,16 +135,25 @@ class BytecodeWalker(object):
             return True, node if isinstance(node.offset, int) and node.offset >= offset else None
         else:
             first = True
-            for x in node:
-                subfirst, subnode = self.find_offset(x, offset)
+            for i in range(len(node)):
+                subfirst, subnode = self.find_offset(node[i], offset)
                 if subnode is not None:
                     if first and subfirst:
                         return True, node
+                    elif subnode is node[i]:
+                        return False, node[i:]
                     else:
                         return False, subnode
                 first = False
             else:
                 return False, None
+
+    def no_unary_plus(self, node):
+        if isinstance(node, rejig.syntaxtree.Call) and node.fcn == "u+" and isinstance(node.args[0], rejig.syntaxtree.Const) and isinstance(node.args[0].value, numbers.Number):
+            return node.args[0]
+        elif isinstance(node, rejig.syntaxtree.Call) and node.fcn == "u+":
+            node.args = tuple(self.no_unary_plus(x) for x in node.args)
+        return node
 
     def make_const(self, value, sourcepath, linestart):
         if isinstance(value, tuple):
@@ -161,13 +171,26 @@ class BytecodeWalker(object):
         else:
             return rejig.syntaxtree.Const(value, sourcepath=sourcepath, linestart=linestart)
 
-    def make_suite(self, node):
+    def make_suite(self, node, sourcepath, linestart):
         suite = []
-        for x in node:
-            suite.append(self.n(x))
+        for i in range(len(node)):
+            if node[i].kind == "_stmts":
+                for x in node[i]:
+                    suite.append(self.n(x))
+            else:
+                suite.append(self.n(node[i]))
+
+            if isinstance(suite[-1], rejig.syntaxtree.Suite):
+                suite, flatten = suite[:-1], suite[-1]
+                for x in flatten:
+                    suite.append(x)
+
             if isinstance(suite[-1], rejig.syntaxtree.Call) and suite[-1].fcn == "return":
                 break
-        return rejig.syntaxtree.Suite(tuple(suite), sourcepath=self.sourcepath, linestart=node.linestart)
+            elif isinstance(suite[-1], rejig.syntaxtree.Call) and suite[-1].fcn == "if" and len(suite[-1].args) == 2 and any(isinstance(x, rejig.syntaxtree.Call) and x.fcn == "return" for x in suite[-1].args[1].body):
+                suite[-1].args = suite[-1].args + (self.make_suite(node[i + 1 :], sourcepath, linestart),)
+                break
+        return rejig.syntaxtree.Suite(tuple(suite), sourcepath=sourcepath, linestart=linestart)
 
     def make_comp(self, source, loops):
         if len(loops) == 1:
@@ -187,10 +210,10 @@ class BytecodeWalker(object):
                 raise AssertionError(type(args))
 
             if pred is not None:
-                filterer = rejig.syntaxtree.Def(args, (), rejig.syntaxtree.Suite((pred,), sourcepath=pred.sourcepath, linestart=pred.linestart), sourcepath=pred.sourcepath, linestart=pred.linestart)
+                filterer = rejig.syntaxtree.Def(args, (), rejig.syntaxtree.Suite((rejig.syntaxtree.Call("return", pred, sourcepath=pred.sourcepath, linestart=pred.linestart),), sourcepath=pred.sourcepath, linestart=pred.linestart), sourcepath=pred.sourcepath, linestart=pred.linestart)
                 src = rejig.syntaxtree.Call(rejig.syntaxtree.Call(".", src, "filter", sourcepath=pred.sourcepath, linestart=pred.linestart), filterer, sourcepath=pred.sourcepath, linestart=pred.linestart)
             
-            mapper = rejig.syntaxtree.Def(args, (), rejig.syntaxtree.Suite((next,), sourcepath=next.sourcepath, linestart=next.linestart), sourcepath=next.sourcepath, linestart=next.linestart)
+            mapper = rejig.syntaxtree.Def(args, (), rejig.syntaxtree.Suite((rejig.syntaxtree.Call("return", next, sourcepath=next.sourcepath, linestart=next.linestart),), sourcepath=next.sourcepath, linestart=next.linestart), sourcepath=next.sourcepath, linestart=next.linestart)
             return rejig.syntaxtree.Call(rejig.syntaxtree.Call(".", src, "map", sourcepath=next.sourcepath, linestart=next.linestart), mapper, sourcepath=next.sourcepath, linestart=next.linestart)
 
     def n(self, node):
