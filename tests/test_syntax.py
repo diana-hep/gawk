@@ -535,6 +535,7 @@ elif x == 1:
     return 2
 else:
     return 3''', Suite((Call('if', Call('==', Name('x'), Const(0)), Suite((Call('return', Const(1)),)), Suite((Call('if', Call('==', Name('x'), Const(1)), Suite((Call('return', Const(2)),)), Suite((Call('return', Const(3)),))),))),)))
+
 check('''if x == 0:
     y = 1
     return 1

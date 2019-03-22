@@ -823,7 +823,7 @@ class BytecodeWalker(object):
         return rejig.syntaxtree.Call("?", self.n(node[0]), self.n(node[2]), self.n(node[4]), sourcepath=self.sourcepath, linestart=node.linestart)
 
     def n_ret_expr(self, node):
-        return self.n(node[0])
+        return rejig.syntaxtree.Call("return", self.n(node[0]), sourcepath=self.sourcepath, linestart=node.linestart)
 
     def n_ret_and(self, node):
         raise NotImplementedError(self.nameline('ret_and', node))
@@ -957,7 +957,14 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('for', node))
 
     def n_returns(self, node):
-        raise NotImplementedError(self.nameline('returns', node))
+        if node[0].kind == "_stmts" and len(node[0]) > 1 and node[0][0][0].kind == "ifstmt":
+            out = self.n(node[0][0][0])
+            assert isinstance(out, rejig.syntaxtree.Call) and out.fcn == "if"
+            assert len(out.args) == 2
+            out.args = out.args + (rejig.syntaxtree.Suite(tuple(self.n(x) for x in node[0][1:]), sourcepath=self.sourcepath, linestart=node.linestart),)
+            return out
+        else:
+            return self.n(node[0])
 
     def n__jump_back(self, node):
         raise NotImplementedError(self.nameline('_jump_back', node))
@@ -999,21 +1006,22 @@ class BytecodeWalker(object):
         return self.n(node[0])
 
     def n_return(self, node):
-        return rejig.syntaxtree.Call("return", self.n(node[0]), sourcepath=self.sourcepath, linestart=node.linestart)
+        return self.n(node[0])
 
     def n_RETURN_LAST(self, node):
         raise NotImplementedError(self.nameline('RETURN_LAST', node))
 
     def n_return_if_stmts(self, node):
         out = self.make_suite(node, self.sourcepath, node.linestart)
-        out.body = out.body[:-1] + (rejig.syntaxtree.Call("return", out.body[-1], sourcepath=self.sourcepath, linestart=node.linestart),)
+        if not (isinstance(out.body[-1], rejig.syntaxtree.Call) and out.body[-1].fcn == "return"):
+            out.body = out.body[:-1] + (rejig.syntaxtree.Call("return", out.body[-1], sourcepath=self.sourcepath, linestart=node.linestart),)
         return out
 
     def n_return_if_stmt(self, node):
         return self.n(node[0])
 
     def n__stmts(self, node):
-        raise NotImplementedError(self.nameline('_stmts', node))
+        return self.n(node[0])
 
     def n_RETURN_END_IF(self, node):
         raise NotImplementedError(self.nameline('RETURN_END_IF', node))
@@ -1703,7 +1711,7 @@ class BytecodeWalker(object):
         raise NotImplementedError(self.nameline('BUILD_TUPLE_1', node))
 
     def n_ifelsestmtr(self, node):
-        raise NotImplementedError(self.nameline('ifelsestmtr', node))
+        return rejig.syntaxtree.Call("if", self.n(node[0]), rejig.syntaxtree.Suite((self.n(node[1][0]),), sourcepath=self.sourcepath, linestart=node.linestart), rejig.syntaxtree.Suite((self.n(node[2]),), sourcepath=self.sourcepath, linestart=node.linestart), sourcepath=self.sourcepath, linestart=node.linestart)
 
     def n_kwargs(self, node):
         raise NotImplementedError(self.nameline('kwargs', node))
