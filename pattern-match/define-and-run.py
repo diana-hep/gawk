@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import collections
-import itertools
 import math
 
 import lark
@@ -9,13 +8,14 @@ import lark
 grammar = """
 start: NEWLINE* (statement (NEWLINE | ";"))* statement NEWLINE*
 
-match:      "match" pattern+
-pattern:    CNAME "=" expression constraint* -> intermediate
-          | CNAME "in" expression constraint* -> terminal
+nextpat:    pattern -> flattened | "{" pattern "}" -> structured | "{" pattern "}" "[" slice "]" -> reduced
+pattern:    constraint+ nextpat -> constrained
+          | CNAME "=" expression constraint* nextpat -> intermediate
+          | CNAME "in" expression constraint* [nextpat] -> terminal
 constraint: "cut" expression -> cut | "fit" expression -> fit
 
 statement:  assignment -> pass | funcassign -> pass
-assignment: CNAME "=" (expression | match)
+assignment: CNAME "=" (expression | "match" nextpat)
 funcassign: CNAME "(" [CNAME ("," CNAME)*] ")" "=" block
 
 expression: function   -> pass
@@ -34,12 +34,14 @@ term:    factor        -> pass | factor "*" term -> mul | factor "/" term -> div
 factor:  pow           -> pass | "+" factor      -> pos | "-" factor      -> neg
 pow:     call          -> pass | call "**" factor
 call:    atom          -> pass
-    |    call "(" arglist ")"  | call "[" expression "]" -> subscript | call "." CNAME -> attribute
+       | call "(" arglist ")"  | call "[" slice "]" -> subscript | call "." CNAME -> attribute
 
 atom:    "(" expression ")" -> pass | CNAME -> symbol | INT -> int | FLOAT -> float
 
 paramlist: "(" [CNAME ("," CNAME)*] ")" | CNAME
-arglist:    expression ("," expression)*
+arglist:   expression ("," expression)*
+slice:     expression -> pass
+         | expression ":" -> slice1 | ":" expression -> slice2 | expression ":" expression -> slice12
 
 %import common.CNAME
 %import common.INT
@@ -73,16 +75,25 @@ class Module(AST):
     def __str__(self):
         return "\n".join(str(x) for x in self.statements)
 
-class Match(AST):
-    _fields = ("patterns",)
-    def __str__(self):
-        return "\n    match " + "\n          ".join(str(x) for x in self.patterns)
+# class Match(AST):
+#     _fields = ("pattern",)
+#     def __str__(self):
+#         return "\n    match " + self.pattern
+                                
+                                
+#                                 "\n          ".join(str(x) for x in self.patterns)
 
-class Pattern(AST):
-    _fields = ("symbol", "expression", "cuts", "fits", "terminal")
-    def __str__(self):
-        constraints = [" cut " + str(x) for x in self.cuts] + [" fit " + str(x) for x in self.fits]
-        return "{0} {1} {2}{3}".format(self.symbol, "in" if self.terminal else "=", str(self.expression), "\n              ".join(constraints))
+# class Constrained(AST):
+#     _fields = ("cuts", "fits", "patterns")
+    
+
+
+
+# class Pattern(AST):
+#     _fields = ("symbol", "expression", "cuts", "fits", "terminal")
+#     def __str__(self):
+#         constraints = [" cut " + str(x) for x in self.cuts] + [" fit " + str(x) for x in self.fits]
+#         return "{0} {1} {2}{3}".format(self.symbol, "in" if self.terminal else "=", str(self.expression), "\n              ".join(constraints))
 
 class Assignment(AST):
     _fields = ("symbol", "expression")
@@ -114,6 +125,11 @@ class Attribute(AST):
     _fields = ("object", "field")
     def __str__(self):
         return "{0}.{1}".format(str(self.object), self.field)
+
+class Slice(AST):
+    _fields = ("start", "stop")
+    def __str__(self):
+        return "{0}:{1}".format("" if self.start is None else str(self.start), "" if self.stop is None else str(self.stop))
 
 class Symbol(AST):
     _fields = ("symbol",)
@@ -164,6 +180,12 @@ def toast(node):
         return Subscript(toast(node.children[0]), toast(node.children[1]))
     elif node.data == "attribute":
         return Attribute(toast(node.children[0]), node.children[1])
+    elif node.data == "slice1":
+        return Slice(toast(node.children[0]), None)
+    elif node.data == "slice2":
+        return Slice(None, toast(node.children[0]))
+    elif node.data == "slice12":
+        return Slice(toast(node.children[0]), toast(node.children[1]))
     elif node.data == "symbol":
         return Symbol(node.children[0], line=node.children[0].line)
     elif node.data == "int":
@@ -174,6 +196,28 @@ def toast(node):
         return Call(Symbol(opname[node.data]), [toast(x) for x in node.children])
     else:
         raise AssertionError(node.data)
+
+# print(toast(parser.parse("""
+# genreco =
+#     match fit (gen - reco)**2
+#           gen in generator
+#               reco in reconstructed
+# """)))
+
+# print(parser.parse("""
+# higgs =
+#     match fit (z1.eta - z2.eta)**2
+#           z1 = mu1 + mu2
+#               cut mu1.charge != mu2.charge
+#               fit (z1.mass - 91)**2
+#           mu1 in muons
+#           mu2 in muons
+#           z2 = mu3 + mu4
+#               cut mu3.charge != mu4.charge
+#               fit (z2.mass - 91)**2
+#           mu3 in muons
+#           mu4 in muons
+# """).pretty())
 
 class SymbolTable:
     def __init__(self, parent, symbols):
@@ -248,6 +292,8 @@ def run(node, symbols):
         return run(node.object, symbols)[run(node.index, symbols)]
     elif isinstance(node, Attribute):
         return getattr(run(node.object, symbols), node.field)
+    elif isinstance(node, Slice):
+        return slice(None if node.start is None else run(node.start, symbols), None if node.stop is None else run(node.stop, symbols), None)
     elif isinstance(node, Symbol):
         return symbols[node.symbol]
     elif isinstance(node, Literal):
@@ -297,15 +343,21 @@ print(symbols)
 
 # print(toast(parser.parse("""
 # higgs =
-#     match h = z1 + z2 fit (h.mass - 125)**2
-#           z1 = mu1 + mu2
-#               cut mu1.charge != mu2.charge
-#               fit (z1.mass - 91)**2
-#           mu1 in muons
-#           mu2 in muons
+#     match h = z1 + z2 fit (h.mass - 125)**2 {
+#               z1 = mu1 + mu2
+#                   cut mu1.charge != mu2.charge
+#                   fit (z1.mass - 91)**2
+#               mu1 in muons
+#               mu2 in muons
+#           }
 #           z2 = mu3 + mu4
 #               cut mu3.charge != mu4.charge
 #               fit (z2.mass - 91)**2
 #           mu3 in muons
 #           mu4 in muons
 # """)))
+
+# match fit (gen - reco)**2
+#       gen in generator {
+#         reco in reconstructed
+#       }
