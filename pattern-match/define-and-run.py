@@ -8,17 +8,18 @@ import lark
 grammar = """
 start: NEWLINE* (statement (NEWLINE | ";"))* statement NEWLINE*
 
-nextpat:    pattern -> flattened | "{" pattern "}" -> structured | "{" pattern "}" "[" slice "]" -> reduced
-pattern:    constraint+ nextpat -> constrained
-          | CNAME "=" expression constraint* nextpat -> intermediate
-          | CNAME "in" expression constraint* [nextpat] -> terminal
-constraint: "cut" expression -> cut | "fit" expression -> fit
+pattern:    derivation* constraint* "for" multiple
+derivation: CNAME "=" expression
+constraint: "if" expression -> if | "best" expression -> best | "sort" expression -> sort
+multiple:   single ("," single)*
+single:     CNAME ("," CNAME)* "in" expression
 
 statement:  assignment -> pass | funcassign -> pass
-assignment: CNAME "=" (expression | "match" nextpat)
+assignment: CNAME "=" expression
 funcassign: CNAME "(" [CNAME ("," CNAME)*] ")" "=" block
 
-expression: function   -> pass
+expression: match      -> pass
+match:      function   -> pass | "match" "{" pattern "}"
 function:   block      -> pass | paramlist "=>" block
 block:      or         -> pass | "{" NEWLINE* (statement (NEWLINE | ";"))* expression NEWLINE* "}"
 
@@ -75,25 +76,25 @@ class Module(AST):
     def __str__(self):
         return "\n".join(str(x) for x in self.statements)
 
-# class Match(AST):
-#     _fields = ("pattern",)
-#     def __str__(self):
-#         return "\n    match " + self.pattern
-                                
-                                
-#                                 "\n          ".join(str(x) for x in self.patterns)
+class Pattern(AST):
+    _fields = ("derivations", "constraints", "sources")
+    def __str__(self):
+        return "match {{\n    {0}}}".format("\n    ".join(str(x) for x in self.derivations + self.constraints + [self.sources]))
 
-# class Constrained(AST):
-#     _fields = ("cuts", "fits", "patterns")
-    
+class Constraint(AST):
+    _fields = ("clause", "expression")
+    def __str__(self):
+        return self.clause + " " + str(self.expression)
 
+class Sources(AST):
+    _fields = ("singles",)
+    def __str__(self):
+        return "for " + ", ".join(str(x) for x in self.singles)
 
-
-# class Pattern(AST):
-#     _fields = ("symbol", "expression", "cuts", "fits", "terminal")
-#     def __str__(self):
-#         constraints = [" cut " + str(x) for x in self.cuts] + [" fit " + str(x) for x in self.fits]
-#         return "{0} {1} {2}{3}".format(self.symbol, "in" if self.terminal else "=", str(self.expression), "\n              ".join(constraints))
+class Source(AST):
+    _fields = ("symbols", "expression")
+    def __str__(self):
+        return ", ".join(self.symbols) + " in " + str(self.expression)
 
 class Assignment(AST):
     _fields = ("symbol", "expression")
@@ -148,17 +149,28 @@ opname = {
     }
 
 def toast(node):
-    if node.data == "pass":
+    if node.data == "pass" or node.data == "match":
         return toast(node.children[0])
     elif node.data == "start":
         return Module([toast(x) for x in node.children if not isinstance(x, lark.lexer.Token)])
-    elif node.data == "match":
-        return Match([toast(x) for x in node.children])
-    elif node.data == "intermediate" or node.data == "terminal":
-        cuts = [toast(x.children[0]) for x in node.children[2:] if x.data == "cut"]
-        fits = [toast(x.children[0]) for x in node.children[2:] if x.data == "fit"]
-        return Pattern(str(node.children[0]), toast(node.children[1]), cuts, fits, node.data == "terminal", line=node.children[0].line)
-    elif node.data == "assignment":
+    elif node.data == "pattern":
+        args = [toast(x) for x in node.children]
+        derivations = [x for x in args if isinstance(x, Assignment)]
+        constraints = [x for x in args if isinstance(x, Constraint)]
+        count = 0
+        for x in constraints:
+            if x.clause == "best" or x.clause == "sort":
+                count += 1
+            if count > 1:
+                raise SyntaxError("on line {0}, only one best/sort is allowed".format("???" if x.line is None else x.line))
+        return Pattern(derivations, constraints, args[-1])
+    elif node.data == "if" or node.data == "best" or node.data == "sort":
+        return Constraint(node.data, toast(node.children[0]))
+    elif node.data == "multiple":
+        return Sources([toast(x) for x in node.children])
+    elif node.data == "single":
+        return Source([str(x) for x in node.children[:-1]], toast(node.children[-1]), line=node.children[0].line)
+    elif node.data == "assignment" or node.data == "derivation":
         return Assignment(str(node.children[0]), toast(node.children[1]), line=node.children[0].line)
     elif node.data == "funcassign":
         return Assignment(str(node.children[0]), Function(node.children[1:-1], toast(node.children[-1])), line=node.children[0].line)
@@ -196,6 +208,27 @@ def toast(node):
         return Call(Symbol(opname[node.data]), [toast(x) for x in node.children])
     else:
         raise AssertionError(node.data)
+
+# print(toast(parser.parse("""
+# genreco = match for gen in generator, reco in reconstructed
+# """)))
+
+print(toast(parser.parse("""
+higgs = match {
+        h = z1 + z2
+        z1 = mu1 + mu2
+        z2 = mu3 + mu4
+        if mu1.charge != mu2.charge
+        if mu3.charge != mu4.charge
+        best (mass(z1) - 91)**2 + (mass(z2) - 91)**2
+        for mu1, mu2, mu3, mu4 in muons
+    }
+""")))
+
+
+
+
+
 
 # print(toast(parser.parse("""
 # genreco =
@@ -356,6 +389,14 @@ print(symbols)
 #           mu3 in muons
 #           mu4 in muons
 # """)))
+
+"""
+
+{mu1 in muons, mu2 in muons, {mu3 in muons, mu4 in muons}}
+
+{gen in generator, {reco in reconstructed}}
+
+"""
 
 # match fit (gen - reco)**2
 #       gen in generator {
