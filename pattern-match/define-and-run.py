@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+import collections
+import itertools
+import math
+
 import lark
 
 grammar = """
@@ -171,21 +175,6 @@ def toast(node):
     else:
         raise AssertionError(node.data)
 
-# print(toast(parser.parse("""
-# higgs =
-#     match h = z1 + z2 fit (h.mass - 125)**2
-#           z1 = mu1 + mu2
-#               cut mu1.charge != mu2.charge
-#               fit (z1.mass - 91)**2
-#           mu1 in muons
-#           mu2 in muons
-#           z2 = mu3 + mu4
-#               cut mu3.charge != mu4.charge
-#               fit (z2.mass - 91)**2
-#           mu3 in muons
-#           mu4 in muons
-# """)))
-
 class SymbolTable:
     def __init__(self, parent, symbols):
         self.parent = parent
@@ -208,25 +197,57 @@ class SymbolTable:
             raise KeyError(symbol)
 
     def __setitem__(self, symbol, value):
-        if symbol in self:
-            raise TypeError("symbol {0} has multiple definitions".format(repr(symbol)))
+        if symbol in self.symbols:
+            raise TypeError("symbol {0} has multiple definitions at this scope".format(repr(symbol)))
         else:
             self.symbols[symbol] = value
 
     def __str__(self):
-        return str(self.symbols)
+        return "{" + ", ".join(repr(n) + ": " + repr(x) for n, x in self.symbols.items() if not callable(x)) + "}"
 
 def run(node, symbols):
     if isinstance(node, Module):
         for x in node.statements:
             run(x, symbols)
+
+# class Match(AST):    _fields = ("patterns",)
+# class Pattern(AST):     _fields = ("symbol", "expression", "cuts", "fits", "terminal")
+
+    # elif isinstance(node, Match):
+        
+
+
+
+
+    #     for row in itertools.product(*iterables)
+
+
+
     elif isinstance(node, Assignment):
         symbols[node.symbol] = run(node.expression, symbols)
+    elif isinstance(node, Function):
+        def function(arguments, symbols):
+            if len(node.parameters) != len(arguments):
+                raise TypeError("function expects {0} arguments, got {1}".format(len(node.parameters), len(arguments)))
+            scope = {}
+            for param, arg in zip(node.parameters, arguments):
+                scope[param] = run(arg, symbols)
+            return run(node.body, SymbolTable(symbols, scope))
+        return function
+    elif isinstance(node, Block):
+        symbols = SymbolTable(symbols, {})
+        for x in node.statements:
+            run(x, symbols)
+        return run(x.expression, symbols)
     elif isinstance(node, Call):
         try:
             return run(node.function, symbols)(node.arguments, symbols)
         except Exception as err:
             raise RuntimeError("on line {0}, encountered {1}: {2}".format("???" if node.line is None else node.line, type(err).__name__, str(err)))
+    elif isinstance(node, Subscript):
+        return run(node.object, symbols)[run(node.index, symbols)]
+    elif isinstance(node, Attribute):
+        return getattr(run(node.object, symbols), node.field)
     elif isinstance(node, Symbol):
         return symbols[node.symbol]
     elif isinstance(node, Literal):
@@ -235,77 +256,56 @@ def run(node, symbols):
         raise AssertionError(type(node))
 
 builtins = SymbolTable(None, {
-    "and": lambda arguments, symbols: run(arguments[0], symbols) and run(arguments[1], symbols),
+    "len":  lambda arguments, symbols: len(run(arguments[0], symbols)),
 
-    "+": lambda arguments, symbols: run(arguments[0], symbols) + run(arguments[1], symbols),
+    "and":  lambda arguments, symbols: run(arguments[0], symbols) and run(arguments[1], symbols),
+    "or":   lambda arguments, symbols: run(arguments[0], symbols) or run(arguments[1], symbols),
+    "not":  lambda arguments, symbols: not run(arguments[0], symbols),
 
+    "==":   lambda arguments, symbols: run(arguments[0], symbols) == run(arguments[1], symbols),
+    "!=":   lambda arguments, symbols: run(arguments[0], symbols) != run(arguments[1], symbols),
+    ">":    lambda arguments, symbols: run(arguments[0], symbols) > run(arguments[1], symbols),
+    ">=":   lambda arguments, symbols: run(arguments[0], symbols) >= run(arguments[1], symbols),
+    "<":    lambda arguments, symbols: run(arguments[0], symbols) < run(arguments[1], symbols),
+    "<=":   lambda arguments, symbols: run(arguments[0], symbols) <= run(arguments[1], symbols),
+    "+":    lambda arguments, symbols: run(arguments[0], symbols) if len(arguments) == 1 else (run(arguments[0], symbols) + run(arguments[1], symbols)),
+    "-":    lambda arguments, symbols: -run(arguments[0], symbols) if len(arguments) == 1 else (run(arguments[0], symbols) - run(arguments[1], symbols)),
+    "*":    lambda arguments, symbols: run(arguments[0], symbols) * run(arguments[1], symbols),
+    "/":    lambda arguments, symbols: float(run(arguments[0], symbols)) / float(run(arguments[1], symbols)),
+    "**":   lambda arguments, symbols: run(arguments[0], symbols) ** run(arguments[1], symbols),
 
-    # "and": "and", "or": "or", "not": "not",
-    # "eq": "==", "ne": "!=", "gt": ">", "ge": ">=", "lt": "<", "le": "<=",
-    # "add": "+", "sub": "-", "mul": "*", "div": "/", "pos": "+", "neg": "-", "pow": "**"
+    "sqrt": lambda arguments, symbols: math.sqrt(run(arguments[0], symbols)),
+    "exp":  lambda arguments, symbols: math.exp(run(arguments[0], symbols)),
+    "sin":  lambda arguments, symbols: math.sin(run(arguments[0], symbols)),
+    "cos":  lambda arguments, symbols: math.cos(run(arguments[0], symbols)),
+    "tan":  lambda arguments, symbols: math.tan(run(arguments[0], symbols)),
+    "sinh": lambda arguments, symbols: math.sinh(run(arguments[0], symbols)),
+    "cosh": lambda arguments, symbols: math.cosh(run(arguments[0], symbols)),
+    "tanh": lambda arguments, symbols: math.tanh(run(arguments[0], symbols)),
     })
 
-symbols = SymbolTable(builtins, {})
+LorentzVector = collections.namedtuple("LorentzVector", ["px", "py", "pz", "E"])
+
+symbols = SymbolTable(builtins, {"x": LorentzVector(1, 2, 3, 4)})
 
 run(toast(parser.parse("""
-x = 2 + 2
+quad(x, y) = sqrt(x**2 + y**2)
+z = quad(x.pz, x.E)
 """)), symbols)
 
 print(symbols)
 
-# class Module(AST):
-#     _fields = ("statements",)
-#     def __str__(self):
-#         return "\n".join(str(x) for x in self.statements)
-
-# class Match(AST):
-#     _fields = ("patterns",)
-#     def __str__(self):
-#         return "\n    match " + "\n          ".join(str(x) for x in self.patterns)
-
-# class Pattern(AST):
-#     _fields = ("symbol", "expression", "cuts", "fits", "terminal")
-#     def __str__(self):
-#         constraints = [" cut " + str(x) for x in self.cuts] + [" fit " + str(x) for x in self.fits]
-#         return "{0} {1} {2}{3}".format(self.symbol, "in" if self.terminal else "=", str(self.expression), "\n              ".join(constraints))
-
-# class Assignment(AST):
-#     _fields = ("symbol", "expression")
-#     def __str__(self):
-#         return "{0} = {1}".format(self.symbol, str(self.expression))
-
-# class Function(AST):
-#     _fields = ("parameters", "body")
-#     def __str__(self):
-#         left, right = ("", "") if len(self.parameters) == 1 else ("(", ")")
-#         return "{0}{1}{2} => {3}".format(left, ", ".join(self.parameters), right, str(self.body))
-
-# class Block(AST):
-#     _fields = ("statements", "expression")
-#     def __str__(self):
-#         return "{" + "; ".join(str(x) for x in self.statements + [self.expression]) + "}"
-
-# class Call(AST):
-#     _fields = ("function", "arguments")
-#     def __str__(self):
-#         return "{0}({1})".format(str(self.function), ", ".join(str(x) for x in self.arguments))
-
-# class Subscript(AST):
-#     _fields = ("object", "index")
-#     def __str__(self):
-#         return "{0}[{1}]".format(str(self.object), str(self.index))
-
-# class Attribute(AST):
-#     _fields = ("object", "field")
-#     def __str__(self):
-#         return "{0}.{1}".format(str(self.object), self.field)
-
-# class Symbol(AST):
-#     _fields = ("symbol",)
-#     def __str__(self):
-#         return self.symbol
-
-# class Literal(AST):
-#     _fields = ("value",)
-#     def __str__(self):
-#         return str(self.value)
+# print(toast(parser.parse("""
+# higgs =
+#     match h = z1 + z2 fit (h.mass - 125)**2
+#           z1 = mu1 + mu2
+#               cut mu1.charge != mu2.charge
+#               fit (z1.mass - 91)**2
+#           mu1 in muons
+#           mu2 in muons
+#           z2 = mu3 + mu4
+#               cut mu3.charge != mu4.charge
+#               fit (z2.mass - 91)**2
+#           mu3 in muons
+#           mu4 in muons
+# """)))
