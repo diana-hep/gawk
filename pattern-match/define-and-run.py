@@ -23,8 +23,7 @@ funcassign: CNAME "(" [CNAME ("," CNAME)*] ")" "=" block
 
 expression: function   -> pass
 function:   block      -> pass | paramlist "=>" block
-block:      match      -> pass | "{" NEWLINE* (statement (NEWLINE | ";"))* expression NEWLINE* "}"
-match:      or         -> pass | "match" "{" pattern "}"
+block:      or         -> pass | "{" NEWLINE* (statement (NEWLINE | ";"))* expression NEWLINE* "}"
 
 or:         and        -> pass | and "or" and
 and:        not        -> pass | not "and" not
@@ -40,7 +39,7 @@ pow:     call          -> pass | call "**" factor
 call:    atom          -> pass
        | call "(" arglist ")"  | call "[" slice "]" -> subscript | call "." CNAME -> attribute
 
-atom:    "(" expression ")" -> pass | CNAME -> symbol | INT -> int | FLOAT -> float
+atom:    CNAME -> symbol | INT -> int | FLOAT -> float | "(" expression ")" -> pass | "match" "{" pattern "}" -> pass
 
 paramlist: "(" [CNAME ("," CNAME)*] ")" | CNAME
 arglist:   expression ("," expression)*
@@ -278,7 +277,7 @@ def run(node, symbols):
                         current["metric"] = run(metric[0].expression, current)
                     outputlist.append(outputtype(*[current[n] for n in fields]))
         if len(metric) > 0:
-            outputlist.sort(key="metric")
+            outputlist.sort(key=lambda x: x.metric)
             if metric[0].clause == "best":
                 if len(outputlist) == 0:
                     raise RuntimeError("on line {0}, requesting 'best' of an empty set".format(metric[0].line))
@@ -395,10 +394,6 @@ builtins = SymbolTable(None, {
 # """)), symbols)
 # print(symbols)
 
-events = uproot.open("http://scikit-hep.org/uproot/examples/HZZ.root")["events"]
-Muon_Px, Muon_Py, Muon_Pz, Muon_E, Muon_Charge = events.arrays(["Muon_Px", "Muon_Py", "Muon_Pz", "Muon_E", "Muon_Charge"], outputtype=tuple, entrystop=20)
-Particle = collections.namedtuple("Particle", ["px", "py", "pz", "E", "charge"])
-
 def plus(arguments, symbols):
     args = [run(x, symbols) for x in arguments]
     if all(isinstance(x, Particle) for x in args):
@@ -412,22 +407,45 @@ def plus(arguments, symbols):
 del builtins["+"]
 builtins["+"] = plus
 
+builtins["union"] = lambda arguments, symbols: sum((run(x, symbols) for x in arguments), [])
+
+events = uproot.open("http://scikit-hep.org/uproot/examples/HZZ.root")["events"]
+Electron_Px, Electron_Py, Electron_Pz, Electron_E, Electron_Charge = events.arrays(["Electron_Px", "Electron_Py", "Electron_Pz", "Electron_E", "Electron_Charge"], outputtype=tuple, entrystop=10)
+Muon_Px, Muon_Py, Muon_Pz, Muon_E, Muon_Charge = events.arrays(["Muon_Px", "Muon_Py", "Muon_Pz", "Muon_E", "Muon_Charge"], outputtype=tuple, entrystop=10)
+Particle = collections.namedtuple("Particle", ["px", "py", "pz", "E", "charge"])
+
 engine = toast(parser.parse("""
 mass(particle) = sqrt(particle.E**2 - particle.px**2 - particle.py**2 - particle.pz**2)
 
-higgs = match {
+same_flavor(collection) = match {
+    z1 = lep1 + lep2
+    z2 = lep3 + lep4
     hmass = mass(z1 + z2)
-    z1 = mu1 + mu2
-    z2 = mu3 + mu4
-    if mu1.charge != mu2.charge
-    if mu3.charge != mu4.charge
+    if lep1.charge != lep2.charge
+    if lep3.charge != lep4.charge
     sort (mass(z1) - 91)**2 + (mass(z2) - 91)**2
-    for mu1, mu2, mu3, mu4 in muons
+    for lep1, lep2, lep3, lep4 in collection
+}[:1]
+
+higgs4e = same_flavor(electrons)
+higgs4mu = same_flavor(muons)
+
+higgs2e2mu = match {
+    z1 = lep1 + lep2
+    z2 = lep3 + lep4
+    hmass = mass(z1 + z2)
+    if lep1.charge != lep2.charge
+    if lep3.charge != lep4.charge
+    for lep1, lep2 in electrons, lep3, lep4 in muons
 }
 """))
 
 for i in range(len(Muon_Px)):
-    symbols = SymbolTable(builtins, {"muons": [Particle(Muon_Px[i][j], Muon_Py[i][j], Muon_Pz[i][j], Muon_E[i][j], Muon_Charge[i][j]) for j in range(len(Muon_Px[i]))]})
+    symbols = SymbolTable(builtins, {
+        "electrons": [Particle(Electron_Px[i][j], Electron_Py[i][j], Electron_Pz[i][j], Electron_E[i][j], Electron_Charge[i][j]) for j in range(len(Electron_Px[i]))],
+        "muons": [Particle(Muon_Px[i][j], Muon_Py[i][j], Muon_Pz[i][j], Muon_E[i][j], Muon_Charge[i][j]) for j in range(len(Muon_Px[i]))]
+        })
     run(engine, symbols)
+    del symbols["electrons"]
     del symbols["muons"]
     print(symbols)
