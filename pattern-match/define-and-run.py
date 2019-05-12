@@ -284,15 +284,13 @@ def run(node, symbols):
                     for rest in recurse(singles[1:], data[1:]):
                         yield row + rest
         for row in recurse(node.sources.singles, data):
-            if len(row) == len(set(id(x) for x in row)):
-                current = SymbolTable(symbols, dict(zip(dummys, row)))
-
-                for derivation in node.derivations:
-                    run(derivation, current)
-                if all(run(x, current) for x in select):
-                    if len(metric) > 0:
-                        current["metric"] = run(metric[0].expression, current)
-                    outputlist.append(outputtype(*[current[n] for n in fields]))
+            current = SymbolTable(symbols, dict(zip(dummys, row)))
+            for derivation in node.derivations:
+                run(derivation, current)
+            if all(run(x, current) for x in select):
+                if len(metric) > 0:
+                    current["metric"] = run(metric[0].expression, current)
+                outputlist.append(outputtype(*[current[n] for n in fields]))
 
         if len(metric) > 0:
             outputlist.sort(key=lambda x: x.metric)
@@ -418,8 +416,8 @@ builtins["+"] = plus
 builtins["union"] = lambda arguments, symbols: sum((run(x, symbols) for x in arguments), [])
 
 events = uproot.open("http://scikit-hep.org/uproot/examples/HZZ.root")["events"]
-Electron_Px, Electron_Py, Electron_Pz, Electron_E, Electron_Charge = events.arrays(["Electron_Px", "Electron_Py", "Electron_Pz", "Electron_E", "Electron_Charge"], outputtype=tuple, entrystop=10)
-Muon_Px, Muon_Py, Muon_Pz, Muon_E, Muon_Charge = events.arrays(["Muon_Px", "Muon_Py", "Muon_Pz", "Muon_E", "Muon_Charge"], outputtype=tuple, entrystop=10)
+Electron_Px, Electron_Py, Electron_Pz, Electron_E, Electron_Charge = events.arrays(["Electron_Px", "Electron_Py", "Electron_Pz", "Electron_E", "Electron_Charge"], outputtype=tuple, entrystop=100)
+Muon_Px, Muon_Py, Muon_Pz, Muon_E, Muon_Charge = events.arrays(["Muon_Px", "Muon_Py", "Muon_Pz", "Muon_E", "Muon_Charge"], outputtype=tuple, entrystop=100)
 Particle = collections.namedtuple("Particle", ["px", "py", "pz", "E", "charge"])
 
 engine = toast(parser.parse("""
