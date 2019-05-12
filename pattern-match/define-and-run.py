@@ -255,7 +255,12 @@ def run(node, symbols):
             run(x, symbols)
 
     elif isinstance(node, Pattern):
-        dummys, samples = run(node.sources, symbols)
+        dummys = []
+        for single in node.sources.singles:
+            for x in single.symbols:
+                if x in dummys:
+                    raise TypeError("on line {0}, match variable names are not all unique".format(single.line))
+                dummys.append(x)
         fields = list(dummys)
         for derivation in node.derivations:
             if derivation.symbol in fields:
@@ -267,15 +272,28 @@ def run(node, symbols):
             fields.append("metric")
         outputlist = []
         outputtype = collections.namedtuple("match", fields)
-        for row in itertools.product(*samples):
+
+        dummys = sum([x.symbols for x in node.sources.singles], [])
+        data   = [run(x.expression, symbols) for x in node.sources.singles]
+        def recurse(singles, data):
+            if len(singles) == 1:
+                for row in itertools.combinations(data[0], len(singles[0].symbols)):
+                    yield row
+            else:
+                for row in itertools.combinations(data[0], len(singles[0].symbols)):
+                    for rest in recurse(singles[1:], data[1:]):
+                        yield row + rest
+        for row in recurse(node.sources.singles, data):
             if len(row) == len(set(id(x) for x in row)):
                 current = SymbolTable(symbols, dict(zip(dummys, row)))
+
                 for derivation in node.derivations:
                     run(derivation, current)
                 if all(run(x, current) for x in select):
                     if len(metric) > 0:
                         current["metric"] = run(metric[0].expression, current)
                     outputlist.append(outputtype(*[current[n] for n in fields]))
+
         if len(metric) > 0:
             outputlist.sort(key=lambda x: x.metric)
             if metric[0].clause == "best":
@@ -283,17 +301,6 @@ def run(node, symbols):
                     raise RuntimeError("on line {0}, requesting 'best' of an empty set".format(metric[0].line))
                 return outputlist[0]
         return outputlist
-
-    elif isinstance(node, Sources):
-        dummys, samples = [], []
-        for single in node.singles:
-            sample = run(single.expression, symbols)
-            for x in single.symbols:
-                if x in dummys:
-                    raise TypeError("on line {0}, match variable names are not all unique".format(single.line))
-                dummys.append(x)
-                samples.append(sample)
-        return dummys, samples
 
     elif isinstance(node, Assignment):
         symbols[node.symbol] = run(node.expression, symbols)
@@ -377,22 +384,23 @@ builtins = SymbolTable(None, {
     "tanh": lambda arguments, symbols: math.tanh(run(arguments[0], symbols)),
     })
 
-# LorentzVector = collections.namedtuple("LorentzVector", ["px", "py", "pz", "E"])
-# symbols = SymbolTable(builtins, {"x": LorentzVector(1, 2, 3, 4)})
-# run(toast(parser.parse("""
-# quad(x, y) = sqrt(x**2 + y**2)
-# z = quad(x.pz, x.E)
-# """)), symbols)
-# print(symbols)
+LorentzVector = collections.namedtuple("LorentzVector", ["px", "py", "pz", "E"])
+symbols = SymbolTable(builtins, {"x": LorentzVector(1, 2, 3, 4)})
+run(toast(parser.parse("""
+quad(x, y) = sqrt(x**2 + y**2)
+z = quad(x.pz, x.E)
+""")), symbols)
+print(symbols)
 
-# symbols = SymbolTable(builtins, {"generator": [1, 2, 3], "reconstructed": [1.1, 3.3]})
-# run(toast(parser.parse("""
-# diff(x, y) = abs(x - y)
-# genreco = match {
-#     if diff(gen, reco) < 0.5
-#     for gen in generator, reco in reconstructed}
-# """)), symbols)
-# print(symbols)
+symbols = SymbolTable(builtins, {"generator": [1, 2, 3], "reconstructed": [1.1, 3.3]})
+run(toast(parser.parse("""
+diff(x, y) = abs(x - y)
+genreco = match {
+    if diff(gen, reco) < 0.5
+    for gen in generator, reco in reconstructed
+}
+""")), symbols)
+print(symbols)
 
 def plus(arguments, symbols):
     args = [run(x, symbols) for x in arguments]
@@ -425,7 +433,7 @@ same_flavor(collection) = match {
     if lep3.charge != lep4.charge
     sort (mass(z1) - 91)**2 + (mass(z2) - 91)**2
     for lep1, lep2, lep3, lep4 in collection
-}[:1]
+}
 
 higgs4e = same_flavor(electrons)
 higgs4mu = same_flavor(muons)
