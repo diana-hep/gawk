@@ -238,14 +238,14 @@ class SymbolTable:
     def __str__(self):
         return "{" + ",\n ".join(repr(n) + ": " + repr(x) for n, x in self.symbols.items() if not callable(x)) + "}"
 
-def run(node, symbols):
+def run(node, symbols, matching):
     if isinstance(node, Module):
         for x in node.statements:
-            run(x, symbols)
+            run(x, symbols, None)
 
     elif isinstance(node, Assignment):
         if node.operator == "=":
-            symbols[node.symbol] = run(node.expression, symbols)
+            symbols[node.symbol] = run(node.expression, symbols, matching)
         elif node.operator == "~":
             HERE
         elif node.operator == "~~":
@@ -266,88 +266,42 @@ def run(node, symbols):
     elif isinstance(node, Pattern):
         HERE
 
-    # elif isinstance(node, Pattern):
-    #     dummys = []
-    #     for single in node.sources.singles:
-    #         for x in single.symbols:
-    #             if x in dummys:
-    #                 raise TypeError("on line {0}, match variable names are not all unique".format(single.line))
-    #             dummys.append(x)
-    #     fields = list(dummys)
-    #     for derivation in node.derivations:
-    #         if derivation.symbol in fields:
-    #             raise TypeError("on line {0}, match variable names are not all unique".format(derivation.line))
-    #         fields.append(derivation.symbol)
-    #     select = [constraint.expression for constraint in node.constraints if constraint.clause == "if"]
-    #     metric = [constraint for constraint in node.constraints if constraint.clause != "if"]
-    #     if len(metric) > 0:
-    #         fields.append("metric")
-    #     outputlist = []
-    #     outputtype = collections.namedtuple("match", fields)
-
-    #     dummys = sum([x.symbols for x in node.sources.singles], [])
-    #     data   = [run(x.expression, symbols) for x in node.sources.singles]
-    #     def recurse(singles, data):
-    #         if len(singles) == 1:
-    #             for row in itertools.combinations(data[0], len(singles[0].symbols)):
-    #                 yield row
-    #         else:
-    #             for row in itertools.combinations(data[0], len(singles[0].symbols)):
-    #                 for rest in recurse(singles[1:], data[1:]):
-    #                     yield row + rest
-    #     for row in recurse(node.sources.singles, data):
-    #         current = SymbolTable(symbols, dict(zip(dummys, row)))
-    #         for derivation in node.derivations:
-    #             run(derivation, current)
-    #         if all(run(x, current) for x in select):
-    #             if len(metric) > 0:
-    #                 current["metric"] = run(metric[0].expression, current)
-    #             outputlist.append(outputtype(*[current[n] for n in fields]))
-
-    #     if len(metric) > 0:
-    #         outputlist.sort(key=lambda x: x.metric)
-    #         if metric[0].clause == "best":
-    #             if len(outputlist) == 0:
-    #                 raise RuntimeError("on line {0}, requesting 'best' of an empty set".format(metric[0].line))
-    #             return outputlist[0]
-    #     return outputlist
-
     elif isinstance(node, Function):
-        def function(arguments, symbols):
+        def function(arguments, symbols, matching):
             if len(node.parameters) != len(arguments):
                 raise TypeError("on line {0}, function expects {1} arguments, got {2}".format(node.line, len(node.parameters), len(arguments)))
             scope = {}
             for param, arg in zip(node.parameters, arguments):
-                scope[param] = run(arg, symbols)
-            return run(node.body, SymbolTable(symbols, scope))
+                scope[param] = run(arg, symbols, matching)
+            return run(node.body, SymbolTable(symbols, scope), None)
         return function
 
     elif isinstance(node, Block):
         symbols = SymbolTable(symbols, {})
         for x in node.statements:
-            run(x, symbols)
-        return run(node.expression, symbols)
+            run(x, symbols, matching)
+        return run(node.expression, symbols, matching)
 
     elif isinstance(node, Call):
         try:
-            return run(node.function, symbols)(node.arguments, symbols)
+            return run(node.function, symbols, matching)(node.arguments, symbols, matching)
         except Exception as err:
             raise RuntimeError("on line {0}, encountered {1}: {2}".format("???" if node.line is None else node.line, type(err).__name__, str(err)))
 
     elif isinstance(node, Subscript):
         try:
-            return run(node.object, symbols)[run(node.index, symbols)]
+            return run(node.object, symbols, matching)[run(node.index, symbols, matching)]
         except Exception as err:
             raise RuntimeError("on line {0}, encountered {1}: {2}".format("???" if node.line is None else node.line, type(err).__name__, str(err)))
 
     elif isinstance(node, Attribute):
         try:
-            return getattr(run(node.object, symbols), node.field)
+            return getattr(run(node.object, symbols, matching), node.field)
         except Exception as err:
             raise RuntimeError("on line {0}, encountered {1}: {2}".format("???" if node.line is None else node.line, type(err).__name__, str(err)))
         
     elif isinstance(node, Slice):
-        return slice(None if node.start is None else run(node.start, symbols), None if node.stop is None else run(node.stop, symbols), None)
+        return slice(None if node.start is None else run(node.start, symbols, matching), None if node.stop is None else run(node.stop, symbols, matching), None)
 
     elif isinstance(node, Symbol):
         try:
@@ -362,35 +316,35 @@ def run(node, symbols):
         raise AssertionError(type(node))
 
 builtins = SymbolTable(None, {
-    "len":  lambda arguments, symbols: len(run(arguments[0], symbols)),
-    "abs":  lambda arguments, symbols: abs(run(arguments[0], symbols)),
+    "len":  lambda arguments, symbols, matching: len(run(arguments[0], symbols, matching)),
+    "abs":  lambda arguments, symbols, matching: abs(run(arguments[0], symbols, matching)),
 
-    "and":  lambda arguments, symbols: run(arguments[0], symbols) and run(arguments[1], symbols),
-    "or":   lambda arguments, symbols: run(arguments[0], symbols) or run(arguments[1], symbols),
-    "not":  lambda arguments, symbols: not run(arguments[0], symbols),
+    "and":  lambda arguments, symbols, matching: run(arguments[0], symbols, matching) and run(arguments[1], symbols, matching),
+    "or":   lambda arguments, symbols, matching: run(arguments[0], symbols, matching) or run(arguments[1], symbols, matching),
+    "not":  lambda arguments, symbols, matching: not run(arguments[0], symbols, matching),
 
-    "==":   lambda arguments, symbols: run(arguments[0], symbols) == run(arguments[1], symbols),
-    "!=":   lambda arguments, symbols: run(arguments[0], symbols) != run(arguments[1], symbols),
-    ">":    lambda arguments, symbols: run(arguments[0], symbols) > run(arguments[1], symbols),
-    ">=":   lambda arguments, symbols: run(arguments[0], symbols) >= run(arguments[1], symbols),
-    "<":    lambda arguments, symbols: run(arguments[0], symbols) < run(arguments[1], symbols),
-    "<=":   lambda arguments, symbols: run(arguments[0], symbols) <= run(arguments[1], symbols),
-    "+":    lambda arguments, symbols: +run(arguments[0], symbols) if len(arguments) == 1 else (run(arguments[0], symbols) + run(arguments[1], symbols)),
-    "-":    lambda arguments, symbols: -run(arguments[0], symbols) if len(arguments) == 1 else (run(arguments[0], symbols) - run(arguments[1], symbols)),
-    "*":    lambda arguments, symbols: run(arguments[0], symbols) * run(arguments[1], symbols),
-    "/":    lambda arguments, symbols: float(run(arguments[0], symbols)) / float(run(arguments[1], symbols)),
-    "**":   lambda arguments, symbols: run(arguments[0], symbols) ** run(arguments[1], symbols),
+    "==":   lambda arguments, symbols, matching: run(arguments[0], symbols, matching) == run(arguments[1], symbols, matching),
+    "!=":   lambda arguments, symbols, matching: run(arguments[0], symbols, matching) != run(arguments[1], symbols, matching),
+    ">":    lambda arguments, symbols, matching: run(arguments[0], symbols, matching) > run(arguments[1], symbols, matching),
+    ">=":   lambda arguments, symbols, matching: run(arguments[0], symbols, matching) >= run(arguments[1], symbols, matching),
+    "<":    lambda arguments, symbols, matching: run(arguments[0], symbols, matching) < run(arguments[1], symbols, matching),
+    "<=":   lambda arguments, symbols, matching: run(arguments[0], symbols, matching) <= run(arguments[1], symbols, matching),
+    "+":    lambda arguments, symbols, matching: +run(arguments[0], symbols, matching) if len(arguments) == 1 else (run(arguments[0], symbols, matching) + run(arguments[1], symbols, matching)),
+    "-":    lambda arguments, symbols, matching: -run(arguments[0], symbols, matching) if len(arguments) == 1 else (run(arguments[0], symbols, matching) - run(arguments[1], symbols, matching)),
+    "*":    lambda arguments, symbols, matching: run(arguments[0], symbols, matching) * run(arguments[1], symbols, matching),
+    "/":    lambda arguments, symbols, matching: float(run(arguments[0], symbols, matching)) / float(run(arguments[1], symbols, matching)),
+    "**":   lambda arguments, symbols, matching: run(arguments[0], symbols, matching) ** run(arguments[1], symbols, matching),
 
-    "sqrt": lambda arguments, symbols: math.sqrt(run(arguments[0], symbols)),
-    "exp":  lambda arguments, symbols: math.exp(run(arguments[0], symbols)),
-    "sin":  lambda arguments, symbols: math.sin(run(arguments[0], symbols)),
-    "cos":  lambda arguments, symbols: math.cos(run(arguments[0], symbols)),
-    "tan":  lambda arguments, symbols: math.tan(run(arguments[0], symbols)),
-    "sinh": lambda arguments, symbols: math.sinh(run(arguments[0], symbols)),
-    "cosh": lambda arguments, symbols: math.cosh(run(arguments[0], symbols)),
-    "tanh": lambda arguments, symbols: math.tanh(run(arguments[0], symbols)),
+    "sqrt": lambda arguments, symbols, matching: math.sqrt(run(arguments[0], symbols, matching)),
+    "exp":  lambda arguments, symbols, matching: math.exp(run(arguments[0], symbols, matching)),
+    "sin":  lambda arguments, symbols, matching: math.sin(run(arguments[0], symbols, matching)),
+    "cos":  lambda arguments, symbols, matching: math.cos(run(arguments[0], symbols, matching)),
+    "tan":  lambda arguments, symbols, matching: math.tan(run(arguments[0], symbols, matching)),
+    "sinh": lambda arguments, symbols, matching: math.sinh(run(arguments[0], symbols, matching)),
+    "cosh": lambda arguments, symbols, matching: math.cosh(run(arguments[0], symbols, matching)),
+    "tanh": lambda arguments, symbols, matching: math.tanh(run(arguments[0], symbols, matching)),
 
-    "union": lambda arguments, symbols: sum((run(x, symbols) for x in arguments), []),   # all sorts of unwarranted assumptions
+    "union": lambda arguments, symbols, matching: sum((run(x, symbols, matching) for x in arguments), []),   # all sorts of unwarranted assumptions
     })
 
 class LorentzVector:
@@ -417,35 +371,35 @@ symbols = SymbolTable(builtins, {"x": LorentzVector(1, 2, 3, 4)})
 run(toast(parser.parse("""
 quad(x, y) = sqrt(x**2 + y**2)
 q = quad(x.pz, x.E)
-""")), symbols)
+""")), symbols, None)
 print(symbols)
 
-print(toast(parser.parse("""
-higgs =
-    match {
-        z1 ~ {
-            mu1 ~ muons
-            mu2 ~ muons
-            p4 = mu1.p4 + mu2.p4
-            if mu1.charge != mu2.charge
-        }
-        z2 ~ {
-            mu1 ~ muons
-            mu2 ~ muons
-            p4 = mu1.p4 + mu2.p4
-            if mu1.charge != mu2.charge
-        }
-        p4 = z1.p4 + z2.p4
-        sort (z1 - 91)**2 + (z2 - 91)**2
-    }
-""")))
+# print(toast(parser.parse("""
+# higgs =
+#     match {
+#         z1 ~ {
+#             mu1 ~ muons
+#             mu2 ~ muons
+#             p4 = mu1.p4 + mu2.p4
+#             if mu1.charge != mu2.charge
+#         }
+#         z2 ~ {
+#             mu1 ~ muons
+#             mu2 ~ muons
+#             p4 = mu1.p4 + mu2.p4
+#             if mu1.charge != mu2.charge
+#         }
+#         p4 = z1.p4 + z2.p4
+#         sort (z1 - 91)**2 + (z2 - 91)**2
+#     }
+# """)))
 
-print(toast(parser.parse("""
-genreco = match {
-    gen ~ generator
-    reco = match reconstructed
-}
-""")))
+# print(toast(parser.parse("""
+# genreco = match {
+#     gen ~ generator
+#     reco = match reconstructed
+# }
+# """)))
 
 # symbols = SymbolTable(builtins, {"generator": [1, 2, 3], "reconstructed": [1.1, 3.3]})
 # run(toast(parser.parse("""
