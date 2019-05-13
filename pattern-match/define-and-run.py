@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import collections
+import functools
 import itertools
 import math
 
@@ -78,6 +79,12 @@ class AST:
 
     def __repr__(self):
         return "{0}({1})".format(type(self).__name__, ", ".join(getattr(self, n) for n in self._fields))
+
+    def copy(self, **replacements):
+        out = type(self).__new__(type(self))
+        out.__dict__ = dict(self.__dict__)
+        out.__dict__.update(replacements)
+        return out
 
 class Module(AST):
     _fields = ("statements",)
@@ -238,10 +245,52 @@ class SymbolTable:
     def __str__(self):
         return "{" + ",\n ".join(repr(n) + ": " + repr(x) for n, x in self.symbols.items() if not callable(x)) + "}"
 
+@functools.total_ordering
+class ID:
+    def __init__(self, n):
+        self.n = n
+    def __repr__(self):
+        return "{0}({1})".format(type(self).__name__, self.n)
+    def __hash__(self):
+        return hash((type(self), self.n))
+    def __eq__(self, other):
+        return type(self) == type(other) and self.n == other.n
+    def __ne__(self, other):
+        return not self == other
+    def __lt__(self, other):
+        if type(self) is type(other):
+            return self.n < other.n
+        else:
+            return type(self).__name__ < type(other).__name__
+
+class MatchingContext:
+    class Placeholder:
+        def __init__(self, n):
+            self.n = n
+        def __repr__(self):
+            return "MatchingContext.Placeholder({0})".format(self.n)
+
+    def __init__(self, node, symbols, matching):
+        self.Skip = type("Skip", (Exception,), {})
+        self.collections = []
+        self.node = self.prepare(node, symbols, matching)
+
+    def prepare(self, node, symbols, matching):
+        if isinstance(node, Assignment) and node.operator != "=":
+            out = node.copy(expression=self.Placeholder(len(self.collections)))
+            self.collections.append(run(node.expression, symbols, matching))
+            return out
+        elif isinstance(node, ()):           # where do you stop descending?
+            pass
+        elif isinstance(node, AST):
+            return node.visit(lambda x: x)   # copy through children
+        else:
+            return node
+
 def run(node, symbols, matching):
     if isinstance(node, Module):
         for x in node.statements:
-            run(x, symbols, None)
+            run(x, symbols, matching)
 
     elif isinstance(node, Assignment):
         if node.operator == "=":
@@ -263,6 +312,9 @@ def run(node, symbols, matching):
     elif isinstance(node, Sorter):
         HERE
 
+    elif isinstance(node, Match):
+        return list(MatchingContext(node.expression))
+        
     elif isinstance(node, Pattern):
         HERE
 
@@ -273,11 +325,11 @@ def run(node, symbols, matching):
             scope = {}
             for param, arg in zip(node.parameters, arguments):
                 scope[param] = run(arg, symbols, matching)
-            return run(node.body, SymbolTable(symbols, scope), None)
+            return run(node.body, SymbolTable(symbols, scope), matching)
         return function
 
     elif isinstance(node, Block):
-        symbols = SymbolTable(symbols, {})
+        symbols = SymbolTable(symbols, {}, matching)
         for x in node.statements:
             run(x, symbols, matching)
         return run(node.expression, symbols, matching)
@@ -373,6 +425,19 @@ quad(x, y) = sqrt(x**2 + y**2)
 q = quad(x.pz, x.E)
 """)), symbols, None)
 print(symbols)
+
+# Q = collections.namedtuple("Q", ["id", "q"])
+# class X(ID): pass
+# class Y(ID): pass
+
+# symbols = SymbolTable(builtins, {"x": [Q(X(0), 1.1), Q(X(1), 2.2), Q(X(2), 3.3)], "y": [Q(Y(0), "A"), Q(Y(1), "B")]})
+# run(toast(parser.parse("""
+# z = match {
+#     xi ~ x
+#     yi ~ y
+# }
+# """)), symbols)
+# print(symbols)
 
 # print(toast(parser.parse("""
 # higgs =
