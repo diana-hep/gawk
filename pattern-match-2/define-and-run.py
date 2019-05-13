@@ -2,6 +2,7 @@
 
 import collections
 import itertools
+import functools
 import math
 
 import uproot
@@ -63,6 +64,27 @@ class member:
         return indent + repr(self)
 
 class unique(member): pass
+
+@functools.total_ordering
+class ID:
+    def __init__(self, n):
+        self.n = n
+    def __repr__(self):
+        return "{0}({1})".format(type(self).__name__, self.n)
+    def __hash__(self):
+        return hash((type(self), self.n))
+    def __eq__(self, other):
+        return type(self) == type(other) and self.n == other.n
+    def __ne__(self, other):
+        return not self == other
+    def __lt__(self, other):
+        if type(self) is type(other):
+            return self.n < other.n
+        else:
+            return type(self).__name__ < type(other).__name__
+
+class e(ID): pass
+class m(ID): pass
 
 class P4Object:
     def __init__(self, id, px, py, pz, E, **others):
@@ -188,8 +210,11 @@ Electron_Px, Electron_Py, Electron_Pz, Electron_E, Electron_Charge = events.arra
 Muon_Px, Muon_Py, Muon_Pz, Muon_E, Muon_Charge = events.arrays(["Muon_Px", "Muon_Py", "Muon_Pz", "Muon_E", "Muon_Charge"], outputtype=tuple, entrystop=5)
 
 for i in range(len(Muon_Px)):
-    electrons = [P4Object(("e", j), Electron_Px[i][j], Electron_Py[i][j], Electron_Pz[i][j], Electron_E[i][j], charge=Electron_Charge[i][j]) for j in range(len(Electron_Px[i]))]
-    muons = [P4Object(("m", j), Muon_Px[i][j], Muon_Py[i][j], Muon_Pz[i][j], Muon_E[i][j], charge=Muon_Charge[i][j]) for j in range(len(Muon_Px[i]))]
+    electrons = [P4Object(e(j), Electron_Px[i][j], Electron_Py[i][j], Electron_Pz[i][j], Electron_E[i][j], charge=Electron_Charge[i][j]) for j in range(len(Electron_Px[i]))]
+    muons = [P4Object(m(j), Muon_Px[i][j], Muon_Py[i][j], Muon_Pz[i][j], Muon_E[i][j], charge=Muon_Charge[i][j]) for j in range(len(Muon_Px[i]))]
     print(muons)
 
 match(higgs, {"electrons": electrons, "muons": muons})
+
+genreco = p4obj(gen = member("electrons"),
+                matchreco = p4obj(reco = member("muons")))
