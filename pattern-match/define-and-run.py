@@ -8,28 +8,18 @@ import uproot
 
 import lark
 
-# pattern:    derivation* constraint* "for" multiple
-# derivation: CNAME "=" expression
-# constraint: "if" expression -> if | "best" expression -> best | "sort" expression -> sort
-# multiple:   single ("," single)*
-# single:     CNAME ("," CNAME)* "in" expression
-
 grammar = """
-start: (NEWLINE | ";")* (statement (NEWLINE | ";")+)* statement (NEWLINE | ";")*
+start:      (NEWLINE | ";")* (statement (NEWLINE | ";")+)* statement (NEWLINE | ";")*
 
 statement:  assignment -> pass | funcassign -> pass
-assignment: CNAME "=" expression
 funcassign: CNAME "(" [CNAME ("," CNAME)*] ")" "=" block
-
-fieldassign: CNAME "=" expression
-           | CNAME "~" (pattern | expression) -> symmetric
-           | CNAME "!~" (pattern | expression) -> asymmetric
-pattern:     "{" (NEWLINE | ";")* (fieldassign (NEWLINE | ";")+)* fieldassign (NEWLINE | ";")* "}"
+assignment: CNAME "=" expression
+patassign:  CNAME "=" expression | CNAME "~" expression -> symmetric | CNAME "!~" expression -> asymmetric
+pattern:    (NEWLINE | ";")* (patassign (NEWLINE | ";")+)* patassign (NEWLINE | ";")*
+block:      (NEWLINE | ";")* (statement (NEWLINE | ";")+)* expression (NEWLINE | ";")*
 
 expression: function   -> pass
-function:   block      -> pass | paramlist "=>" block
-block:      or         -> pass | "{" (NEWLINE | ";")* (statement (NEWLINE | ";")+)* expression (NEWLINE | ";")* "}"
-
+function:   or         -> pass | paramlist "=>" block
 or:         and        -> pass | and "or" and
 and:        not        -> pass | not "and" not
 not:        comparison -> pass | "not" not
@@ -37,19 +27,22 @@ comparison: arith      -> pass | arith "==" arith -> eq | arith "!=" arith -> ne
                                | arith ">" arith -> gt  | arith ">=" arith -> ge
                                | arith "<" arith -> lt  | arith "<=" arith -> le
 
-arith:   term          -> pass | term "+" arith  -> add | term "-" arith  -> sub
-term:    factor        -> pass | factor "*" term -> mul | factor "/" term -> div
-factor:  pow           -> pass | "+" factor      -> pos | "-" factor      -> neg
-pow:     call          -> pass | call "**" factor
-call:    atom          -> pass
-       | call "(" arglist ")"  | call "[" slice "]" -> subscript | call "." CNAME -> attribute
+arith:      term          -> pass | term "+" arith  -> add | term "-" arith  -> sub
+term:       factor        -> pass | factor "*" term -> mul | factor "/" term -> div
+factor:     pow           -> pass | "+" factor      -> pos | "-" factor      -> neg
+pow:        call          -> pass | call "**" factor
+call:       atom          -> pass
+          | call "(" arglist ")"  | call "[" slice "]" -> subscript | call "." CNAME -> attribute
 
-atom:    CNAME -> symbol | INT -> int | FLOAT -> float | "(" expression ")" -> pass | "match" pattern -> pass
+atom:       CNAME -> symbol | INT -> int | FLOAT -> float
+          | "(" expression ")" -> pass
+          | "{" pattern "}" -> pass
+          | "{" block "}" -> pass
 
-paramlist: "(" [CNAME ("," CNAME)*] ")" | CNAME
-arglist:   expression ("," expression)*
-slice:     expression -> pass
-         | expression ":" -> slice1 | ":" expression -> slice2 | expression ":" expression -> slice12
+paramlist:  "(" [CNAME ("," CNAME)*] ")" | CNAME
+arglist:    expression ("," expression)*
+slice:      expression -> pass
+          | expression ":" -> slice1 | ":" expression -> slice2 | expression ":" expression -> slice12
 
 %import common.CNAME
 %import common.INT
@@ -60,24 +53,6 @@ slice:     expression -> pass
 """
 
 parser = lark.Lark(grammar)
-
-print(parser.parse("""
-higgs = match {
-        z1 ~ {
-            mu1 ~ muons
-            mu2 ~ muons
-            p4 = mu1.p4 + mu2.p4
-        }
-        z2 !~ {
-            mu1 ~ muons
-            mu2 ~ muons
-            p4 = mu1.p4 + mu2.p4
-        }
-        p4 = z1.p4 + z2.p4
-    }
-""").pretty())
-
-
 
 class AST:
     _fields = ()
@@ -101,30 +76,15 @@ class Module(AST):
     def __str__(self):
         return "\n".join(str(x) for x in self.statements)
 
-# class Pattern(AST):
-#     _fields = ("derivations", "constraints", "sources")
-#     def __str__(self):
-#         return "match {{\n    {0}}}".format("\n    ".join(str(x) for x in self.derivations + self.constraints + [self.sources]))
-
-# class Constraint(AST):
-#     _fields = ("clause", "expression")
-#     def __str__(self):
-#         return self.clause + " " + str(self.expression)
-
-# class Sources(AST):
-#     _fields = ("singles",)
-#     def __str__(self):
-#         return "for " + ", ".join(str(x) for x in self.singles)
-
-# class Source(AST):
-#     _fields = ("symbols", "expression")
-#     def __str__(self):
-#         return ", ".join(self.symbols) + " in " + str(self.expression)
+class Pattern(AST):
+    _fields = ("assignments",)
+    def __str__(self):
+        return "{" + "; ".join(str(x) for x in self.assignments) + "}"
 
 class Assignment(AST):
-    _fields = ("symbol", "expression")
+    _fields = ("symbol", "operator", "expression")
     def __str__(self):
-        return "{0} = {1}".format(self.symbol, str(self.expression))
+        return "{0} {1} {2}".format(self.symbol, self.operator, str(self.expression))
 
 class Function(AST):
     _fields = ("parameters", "body")
@@ -178,27 +138,16 @@ def toast(node):
         return toast(node.children[0])
     elif node.data == "start":
         return Module([toast(x) for x in node.children if not isinstance(x, lark.lexer.Token)])
-    # elif node.data == "pattern":
-    #     args = [toast(x) for x in node.children]
-    #     derivations = [x for x in args if isinstance(x, Assignment)]
-    #     constraints = [x for x in args if isinstance(x, Constraint)]
-    #     count = 0
-    #     for x in constraints:
-    #         if x.clause == "best" or x.clause == "sort":
-    #             count += 1
-    #         if count > 1:
-    #             raise SyntaxError("on line {0}, only one best/sort is allowed".format("???" if x.line is None else x.line))
-    #     return Pattern(derivations, constraints, args[-1])
-    elif node.data == "if" or node.data == "best" or node.data == "sort":
-        return Constraint(node.data, toast(node.children[0]))
-    elif node.data == "multiple":
-        return Sources([toast(x) for x in node.children])
-    elif node.data == "single":
-        return Source([str(x) for x in node.children[:-1]], toast(node.children[-1]))
-    elif node.data == "assignment" or node.data == "derivation":
-        return Assignment(str(node.children[0]), toast(node.children[1]))
     elif node.data == "funcassign":
-        return Assignment(str(node.children[0]), Function(node.children[1:-1], toast(node.children[-1])))
+        return Assignment(str(node.children[0]), "=", Function(node.children[1:-1], toast(node.children[-1])))
+    elif node.data == "assignment" or node.data == "patassign":
+        return Assignment(str(node.children[0]), "=", toast(node.children[1]))
+    elif node.data == "symmetric":
+        return Assignment(str(node.children[0]), "~", toast(node.children[1]))
+    elif node.data == "asymmetric":
+        return Assignment(str(node.children[0]), "!~", toast(node.children[1]))
+    elif node.data == "pattern":
+        return Pattern([toast(x) for x in node.children if not isinstance(x, lark.lexer.Token)])
     elif node.data == "function":
         return Function(toast(node.children[0]), toast(node.children[1]))
     elif node.data == "paramlist":
@@ -413,13 +362,26 @@ class LorentzVector:
 
 symbols = SymbolTable(builtins, {"x": LorentzVector(1, 2, 3, 4)})
 run(toast(parser.parse("""
-q = {
-    quad(x, y) = sqrt(x**2 + y**2);
-    z = quad(x.pz, x.E);
-    z
-}
+quad(x, y) = sqrt(x**2 + y**2)
+q = quad(x.pz, x.E)
 """)), symbols)
 print(symbols)
+
+print(toast(parser.parse("""
+higgs = {
+        z1 ~ {
+            mu1 ~ muons.filter(p4.pt > 50).sort(p4.pt)
+            mu2 ~ muons
+            p4 = mu1.p4 + mu2.p4
+        }.filter(p4.pt > 50).sort(p4.pt)[:1]
+        z2 !~ {
+            mu1 ~ muons
+            mu2 ~ muons
+            p4 = mu1.p4 + mu2.p4
+        }
+        p4 = z1.p4 + z2.p4
+    }.filter(p4.pt > 50).sort(p4.pt)[:1]
+""")))
 
 # symbols = SymbolTable(builtins, {"generator": [1, 2, 3], "reconstructed": [1.1, 3.3]})
 # run(toast(parser.parse("""
