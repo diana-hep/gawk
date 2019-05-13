@@ -14,11 +14,19 @@ start:      (NEWLINE | ";")* (statement (NEWLINE | ";")+)* statement (NEWLINE | 
 statement:  assignment -> pass | funcassign -> pass
 funcassign: CNAME "(" [CNAME ("," CNAME)*] ")" "=" block
 assignment: CNAME "=" expression
-patassign:  CNAME "=" expression | CNAME "~" expression -> symmetric | CNAME "!~" expression -> asymmetric
-pattern:    (NEWLINE | ";")* (patassign (NEWLINE | ";")+)* patassign (NEWLINE | ";")*
+
+patassign:  CNAME "=" expression
+          | CNAME "~" expression -> symmetric
+          | CNAME "~~" expression -> allsymmetric
+          | CNAME "!~" expression -> asymmetric
+          | CNAME "!~~" expression -> allasymmetric
+guard:      "if" expression
+sorter:     "sort" expression
+pattern:    (NEWLINE | ";")* (patassign (NEWLINE | ";")+)* patassign [(NEWLINE | ";")+ guard]  [(NEWLINE | ";")+ sorter] (NEWLINE | ";")*
 block:      (NEWLINE | ";")* (statement (NEWLINE | ";")+)* expression (NEWLINE | ";")*
 
-expression: function   -> pass
+expression: match      -> pass
+match:      function   -> pass | "match" expression
 function:   or         -> pass | paramlist "=>" block
 or:         and        -> pass | and "or" and
 and:        not        -> pass | not "and" not
@@ -36,8 +44,8 @@ call:       atom          -> pass
 
 atom:       CNAME -> symbol | INT -> int | FLOAT -> float
           | "(" expression ")" -> pass
-          | "{" pattern "}" -> pass
           | "{" block "}" -> pass
+          | "{" pattern "}" -> pass
 
 paramlist:  "(" [CNAME ("," CNAME)*] ")" | CNAME
 arglist:    expression ("," expression)*
@@ -76,15 +84,30 @@ class Module(AST):
     def __str__(self):
         return "\n".join(str(x) for x in self.statements)
 
+class Assignment(AST):
+    _fields = ("symbol", "operator", "expression")
+    def __str__(self):
+        return "{0} {1} {2}".format(self.symbol, self.operator, str(self.expression))
+
+class Guard(AST):
+    _fields = ("expression",)
+    def __str__(self):
+        return "if " + str(self.expression)
+
+class Sorter(AST):
+    _fields = ("expression",)
+    def __str__(self):
+        return "sort " + str(self.expression)
+
 class Pattern(AST):
     _fields = ("assignments",)
     def __str__(self):
         return "{" + "; ".join(str(x) for x in self.assignments) + "}"
 
-class Assignment(AST):
-    _fields = ("symbol", "operator", "expression")
+class Match(AST):
+    _fields = ("match",)
     def __str__(self):
-        return "{0} {1} {2}".format(self.symbol, self.operator, str(self.expression))
+        return "match " + str(self.match)
 
 class Function(AST):
     _fields = ("parameters", "body")
@@ -134,7 +157,7 @@ opname = {
     }
 
 def toast(node):
-    if node.data == "pass" or node.data == "match":
+    if node.data == "pass":
         return toast(node.children[0])
     elif node.data == "start":
         return Module([toast(x) for x in node.children if not isinstance(x, lark.lexer.Token)])
@@ -144,10 +167,20 @@ def toast(node):
         return Assignment(str(node.children[0]), "=", toast(node.children[1]))
     elif node.data == "symmetric":
         return Assignment(str(node.children[0]), "~", toast(node.children[1]))
+    elif node.data == "allsymmetric":
+        return Assignment(str(node.children[0]), "~~", toast(node.children[1]))
     elif node.data == "asymmetric":
         return Assignment(str(node.children[0]), "!~", toast(node.children[1]))
+    elif node.data == "allasymmetric":
+        return Assignment(str(node.children[0]), "!~~", toast(node.children[1]))
+    elif node.data == "guard":
+        return Guard(toast(node.children[0]))
+    elif node.data == "sorter":
+        return Sorter(toast(node.children[0]))
     elif node.data == "pattern":
         return Pattern([toast(x) for x in node.children if not isinstance(x, lark.lexer.Token)])
+    elif node.data == "match":
+        return Match(toast(node.children[0]))
     elif node.data == "function":
         return Function(toast(node.children[0]), toast(node.children[1]))
     elif node.data == "paramlist":
@@ -210,6 +243,29 @@ def run(node, symbols):
         for x in node.statements:
             run(x, symbols)
 
+    elif isinstance(node, Assignment):
+        if node.operator == "=":
+            symbols[node.symbol] = run(node.expression, symbols)
+        elif node.operator == "~":
+            HERE
+        elif node.operator == "~~":
+            HERE
+        elif node.operator == "!~":
+            HERE
+        elif node.operator == "!~~":
+            HERE
+        else:
+            raise AssertionError(node.operator)
+
+    elif isinstance(node, Guard):
+        HERE
+
+    elif isinstance(node, Sorter):
+        HERE
+
+    elif isinstance(node, Pattern):
+        HERE
+
     # elif isinstance(node, Pattern):
     #     dummys = []
     #     for single in node.sources.singles:
@@ -255,9 +311,6 @@ def run(node, symbols):
     #                 raise RuntimeError("on line {0}, requesting 'best' of an empty set".format(metric[0].line))
     #             return outputlist[0]
     #     return outputlist
-
-    elif isinstance(node, Assignment):
-        symbols[node.symbol] = run(node.expression, symbols)
 
     elif isinstance(node, Function):
         def function(arguments, symbols):
@@ -368,19 +421,30 @@ q = quad(x.pz, x.E)
 print(symbols)
 
 print(toast(parser.parse("""
-higgs = {
+higgs =
+    match {
         z1 ~ {
-            mu1 ~ muons.filter(p4.pt > 50).sort(p4.pt)
-            mu2 ~ muons
-            p4 = mu1.p4 + mu2.p4
-        }.filter(p4.pt > 50).sort(p4.pt)[:1]
-        z2 !~ {
             mu1 ~ muons
             mu2 ~ muons
             p4 = mu1.p4 + mu2.p4
+            if mu1.charge != mu2.charge
+        }
+        z2 ~ {
+            mu1 ~ muons
+            mu2 ~ muons
+            p4 = mu1.p4 + mu2.p4
+            if mu1.charge != mu2.charge
         }
         p4 = z1.p4 + z2.p4
-    }.filter(p4.pt > 50).sort(p4.pt)[:1]
+        sort (z1 - 91)**2 + (z2 - 91)**2
+    }
+""")))
+
+print(toast(parser.parse("""
+genreco = match {
+    gen ~ generator
+    reco = match reconstructed
+}
 """)))
 
 # symbols = SymbolTable(builtins, {"generator": [1, 2, 3], "reconstructed": [1.1, 3.3]})
