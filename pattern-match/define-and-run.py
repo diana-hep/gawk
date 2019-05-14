@@ -95,7 +95,7 @@ class Assignment(AST):
         return "{0} {1} {2}".format(self.symbol, self.operator, str(self.expression))
 
 class Pattern(AST):
-    _fields = ("assignments",)
+    _fields = ("assignments", "matching")
     def __init__(self, *args, **kwargs):
         super(Pattern, self).__init__(*args, **kwargs)
         self.ID = type("Line{0}".format(self.line), (ID,), {})
@@ -169,7 +169,7 @@ def toast(node, matching=None):
             raise SyntaxError("cannot use {0} operator outside of a match {...}".format(opname[node.data]))
         return Assignment(str(node.children[0]), opname[node.data], matching.replace(node.children[1]))
     elif node.data == "pattern":
-        return Pattern([toast(x, matching) for x in node.children if not isinstance(x, lark.lexer.Token)])
+        return Pattern([toast(x, matching) for x in node.children if not isinstance(x, lark.lexer.Token)], matching)
     elif node.data == "join":
         m = Matching()
         return Join(toast(node.children[0], m), m)
@@ -222,8 +222,6 @@ class SymbolTable:
             raise KeyError(symbol)
 
     def __setitem__(self, symbol, value):
-        print("HERE", symbol, value, self.symbols)
-
         if symbol in self.symbols:
             raise TypeError("symbol {0} has multiple definitions at this scope".format(repr(symbol)))
         else:
@@ -309,7 +307,10 @@ def run(node, symbols):
         return list(node.matching.run(node.expression, symbols))
         
     elif isinstance(node, Pattern):
-        out = obj(999)
+        if node.matching is None:
+            out = obj(node.ID(None))
+        else:
+            out = obj(node.ID(node.matching.i))
         symbols = SymbolTable(symbols, out)
         for x in node.assignments:
             run(x, symbols)
@@ -430,8 +431,9 @@ class Y(ID): pass
 # symbols = SymbolTable(builtins, {"x": [Q(X(0), 1.1), Q(X(1), 2.2), Q(X(2), 3.3)], "y": [Q(Y(0), "A"), Q(Y(1), "B")]})
 symbols = SymbolTable(builtins, {"x": [1.1, 2.2, 3.3], "y": ["A", "B"]})
 run(toast(parser.parse("""
-z = {
-    xi = 3
+z = join {
+    xi ~ x
+    yi ~ y
 }
 """)), symbols)
 print(symbols)
