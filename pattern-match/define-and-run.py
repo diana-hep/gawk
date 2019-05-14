@@ -228,7 +228,15 @@ class SymbolTable:
             self.symbols[symbol] = value
 
     def __str__(self):
-        return "{" + ",\n ".join(repr(n) + ": " + repr(x) for n, x in self.symbols.items() if not callable(x)) + "}"
+        out = []
+        for n, x in self.symbols.items():
+            if not callable(x):
+                if isinstance(x, list):
+                    start = repr(n) + ": ["
+                    out.append(start + ("\n" + " " * len(start)).join(repr(xi) for xi in x) + "]")
+                else:
+                    out.append(repr(n) + ": " + repr(x))
+        return "{" + ",\n".join(out) + "}"
 
 @functools.total_ordering
 class ID:
@@ -239,19 +247,38 @@ class ID:
     def __hash__(self):
         return hash((type(self), self.n))
     def __eq__(self, other):
-        return type(self) == type(other) and self.n == other.n
+        return type(self) == type(other) and self.n is not None and self.n == other.n
     def __ne__(self, other):
         return not self == other
     def __lt__(self, other):
         if type(self) is type(other):
-            return self.n < other.n
+            if self.n is None:
+                return True
+            elif other.n is None:
+                return False
+            else:
+                return self.n < other.n
         else:
             return type(self).__name__ < type(other).__name__
 
 class obj:
-    def __init__(self, id, **fields):
+    def __init__(self, id=None, **fields):
         self._id = id
         self._fields = collections.OrderedDict(fields.items())
+        self._asymm = set()
+    @property
+    def id(self):
+        if self._id is None:
+            asymm, symm = [], []
+            for n, x in self._fields.items():
+                assert isinstance(x, obj)
+                if n in self._asymm:
+                    asymm.append(x.id)
+                else:
+                    symm.append(x.id)
+            return tuple(sorted(symm) + asymm)
+        else:
+            return self._id
     def __contains__(self, n):
         return n in self._fields
     def __getitem__(self, n):
@@ -264,7 +291,7 @@ class obj:
         else:
             raise AttributeError("{0} object has no attribute {1}".format(repr(type(self).__name__), repr(n)))
     def __repr__(self):
-        return "{0}({1}{2})".format(type(self).__name__, self._id, "".join(", {0}={1}".format(n, repr(x)) for n, x in self._fields.items()))
+        return "{0}({1}{2})".format(type(self).__name__, self.id, "".join(", {0}={1}".format(n, repr(x)) for n, x in self._fields.items()))
 
 class Matching:
     class Placeholder:
@@ -278,6 +305,7 @@ class Matching:
 
     def __init__(self):
         self.collections = []
+        self.Skip = type("Skip", (Exception,), {})
 
     def __repr__(self):
         return "<Matching at 0x{0:012x}>".format(id(self))
@@ -302,15 +330,26 @@ def run(node, symbols):
             symbols[node.symbol] = node.expression.value()
         else:
             symbols[node.symbol] = run(node.expression, symbols)
+        if node.operator == "!~" or node.operator == "!~~":
+            symbols.symbols._asymm.add(node.symbol)
 
     elif isinstance(node, Join):
-        return list(node.matching.run(node.expression, symbols))
-        
+        if isinstance(node.expression, Pattern):
+            node.matching.seen = set()
+            out = []
+            for result in node.matching.run(node.expression, symbols):
+                if result.id not in node.matching.seen:
+                    out.append(result)
+                node.matching.seen.add(result.id)
+            return out
+        else:
+            HERE
+
     elif isinstance(node, Pattern):
         if node.matching is None:
             out = obj(node.ID(None))
         else:
-            out = obj(node.ID(node.matching.i))
+            out = obj()
         symbols = SymbolTable(symbols, out)
         for x in node.assignments:
             run(x, symbols)
@@ -424,14 +463,15 @@ class LorentzVector:
 # """), None), symbols)
 # print(symbols)
 
-# symbols = SymbolTable(builtins, {"x": [Q(X(0), 1.1), Q(X(1), 2.2), Q(X(2), 3.3)], "y": [Q(Y(0), "A"), Q(Y(1), "B")]})
-symbols = SymbolTable(builtins, {"x": [1.1, 2.2, 3.3], "y": ["A", "B"]})
+class X(ID): pass
+class Y(ID): pass
+
+symbols = SymbolTable(builtins, {"x": [obj(X(0), a=0.0), obj(X(1), a=1.1), obj(X(2), a=2.2)],
+                                 "y": [obj(Y(0), b="one"), obj(Y(1), b="two")]})
 run(toast(parser.parse("""
 z = join {
     xi ~ x
-    ys = join {
-        yi ~ y
-    }
+    yi ~ y
 }
 """)), symbols)
 print(symbols)
