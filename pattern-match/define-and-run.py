@@ -26,8 +26,7 @@ sorter:     "sort" expression
 pattern:    (NEWLINE | ";")* (patassign (NEWLINE | ";")+)* patassign [(NEWLINE | ";")+ guard]  [(NEWLINE | ";")+ sorter] (NEWLINE | ";")*
 block:      (NEWLINE | ";")* (statement (NEWLINE | ";")+)* expression (NEWLINE | ";")*
 
-expression: match      -> pass
-match:      function   -> pass | "match" expression
+expression: function   -> pass
 function:   or         -> pass | paramlist "=>" block
 or:         and        -> pass | and "or" and
 and:        not        -> pass | not "and" not
@@ -47,6 +46,7 @@ atom:       CNAME -> symbol | INT -> int | FLOAT -> float
           | "(" expression ")" -> pass
           | "{" block "}" -> pass
           | "{" pattern "}" -> pass
+          | "match" expression -> match
 
 paramlist:  "(" [CNAME ("," CNAME)*] ")" | CNAME
 arglist:    expression ("," expression)*
@@ -112,9 +112,9 @@ class Pattern(AST):
         return "{" + "; ".join(str(x) for x in self.assignments) + "}"
 
 class Match(AST):
-    _fields = ("match",)
+    _fields = ("expression", "matching")
     def __str__(self):
-        return "match " + str(self.match)
+        return "match " + str(self.expression)
 
 class Function(AST):
     _fields = ("parameters", "body")
@@ -160,58 +160,56 @@ class Literal(AST):
 opname = {
     "and": "and", "or": "or", "not": "not",
     "eq": "==", "ne": "!=", "gt": ">", "ge": ">=", "lt": "<", "le": "<=",
-    "add": "+", "sub": "-", "mul": "*", "div": "/", "pos": "+", "neg": "-", "pow": "**"
+    "add": "+", "sub": "-", "mul": "*", "div": "/", "pos": "+", "neg": "-", "pow": "**",
+    "symmetric": "~", "allsymmetric": "~~", "asymmetric": "!~", "allasymmetric": "!~~"
     }
 
-def toast(node):
+def toast(node, matching=None):
     if node.data == "pass":
-        return toast(node.children[0])
+        return toast(node.children[0], matching)
     elif node.data == "start":
-        return Module([toast(x) for x in node.children if not isinstance(x, lark.lexer.Token)])
+        return Module([toast(x, matching) for x in node.children if not isinstance(x, lark.lexer.Token)])
     elif node.data == "funcassign":
-        return Assignment(str(node.children[0]), "=", Function(node.children[1:-1], toast(node.children[-1])))
+        return Assignment(str(node.children[0]), "=", Function(node.children[1:-1], toast(node.children[-1], matching)))
     elif node.data == "assignment" or node.data == "patassign":
-        return Assignment(str(node.children[0]), "=", toast(node.children[1]))
-    elif node.data == "symmetric":
-        return Assignment(str(node.children[0]), "~", toast(node.children[1]))
-    elif node.data == "allsymmetric":
-        return Assignment(str(node.children[0]), "~~", toast(node.children[1]))
-    elif node.data == "asymmetric":
-        return Assignment(str(node.children[0]), "!~", toast(node.children[1]))
-    elif node.data == "allasymmetric":
-        return Assignment(str(node.children[0]), "!~~", toast(node.children[1]))
+        return Assignment(str(node.children[0]), "=", toast(node.children[1], matching))
+    elif node.data == "symmetric" or node.data == "allsymmetric" or node.data == "asymmetric" or node.data == "allasymmetric":
+        if matching is None:
+            raise SyntaxError("cannot use {0} operator outside of a match {...}".format(opname[node.data]))
+        return Assignment(str(node.children[0]), opname[node.data], matching.replace(node.children[1]))
     elif node.data == "guard":
-        return Guard(toast(node.children[0]))
+        return Guard(toast(node.children[0], matching))
     elif node.data == "sorter":
-        return Sorter(toast(node.children[0]))
+        return Sorter(toast(node.children[0], matching))
     elif node.data == "pattern":
-        return Pattern([toast(x) for x in node.children if not isinstance(x, lark.lexer.Token)])
+        return Pattern([toast(x, matching) for x in node.children if not isinstance(x, lark.lexer.Token)])
     elif node.data == "match":
-        return Match(toast(node.children[0]))
+        m = Matching()
+        return Match(toast(node.children[0], m), m)
     elif node.data == "function":
-        return Function(toast(node.children[0]), toast(node.children[1]))
+        return Function(toast(node.children[0], matching), toast(node.children[1], None))
     elif node.data == "paramlist":
         return [str(x) for x in node.children]
     elif node.data == "block":
-        items = [toast(x) for x in node.children if not isinstance(x, lark.lexer.Token)]
+        items = [toast(x, matching) for x in node.children if not isinstance(x, lark.lexer.Token)]
         if len(items) == 1:
             return items[0]
         else:
             return Block(items[:-1], items[-1])
     elif node.data == "call":
-        return Call(toast(node.children[0]), toast(node.children[1]))
+        return Call(toast(node.children[0], matching), toast(node.children[1], matching))
     elif node.data == "arglist":
-        return [toast(x) for x in node.children]
+        return [toast(x, matching) for x in node.children]
     elif node.data == "subscript":
-        return Subscript(toast(node.children[0]), toast(node.children[1]))
+        return Subscript(toast(node.children[0], matching), toast(node.children[1], matching))
     elif node.data == "attribute":
-        return Attribute(toast(node.children[0]), node.children[1])
+        return Attribute(toast(node.children[0], matching), node.children[1])
     elif node.data == "slice1":
-        return Slice(toast(node.children[0]), None)
+        return Slice(toast(node.children[0], matching), None)
     elif node.data == "slice2":
-        return Slice(None, toast(node.children[0]))
+        return Slice(None, toast(node.children[0], matching))
     elif node.data == "slice12":
-        return Slice(toast(node.children[0]), toast(node.children[1]))
+        return Slice(toast(node.children[0], matching), toast(node.children[1], matching))
     elif node.data == "symbol":
         return Symbol(str(node.children[0]), line=node.children[0].line)
     elif node.data == "int":
@@ -219,7 +217,7 @@ def toast(node):
     elif node.data == "float":
         return Literal(float(node.children[0]), line=node.children[0].line)
     elif node.data in opname:
-        return Call(Symbol(opname[node.data]), [toast(x) for x in node.children])
+        return Call(Symbol(opname[node.data]), [toast(x, matching) for x in node.children])
     else:
         raise AssertionError(node.data)
 
@@ -263,48 +261,42 @@ class ID:
         else:
             return type(self).__name__ < type(other).__name__
 
-class MatchingContext:
+class Matching:
     class Placeholder:
-        def __init__(self, n):
+        def __init__(self, m, n):
+            self.m = m
             self.n = n
         def __repr__(self):
-            return "MatchingContext.Placeholder({0})".format(self.n)
+            return "Placeholder({0}, {1})".format(self.m, self.n)
+        def value(self):
+            return self.m.row[self.n]
 
-    def __init__(self, node, symbols, matching):
-        self.Skip = type("Skip", (Exception,), {})
+    def __init__(self):
         self.collections = []
-        self.node = self.prepare(node, symbols, matching)
 
-    def prepare(self, node, symbols, matching):
-        if isinstance(node, Assignment) and node.operator != "=":
-            out = node.copy(expression=self.Placeholder(len(self.collections)))
-            self.collections.append(run(node.expression, symbols, matching))
-            return out
-        elif isinstance(node, ()):           # where do you stop descending?
-            pass
-        elif isinstance(node, AST):
-            return node.visit(lambda x: x)   # copy through children
-        else:
-            return node
+    def __repr__(self):
+        return "<Matching at 0x{0:012x}>".format(id(self))
 
-def run(node, symbols, matching):
+    def replace(self, node):
+        self.collections.append(toast(node, self))
+        return self.Placeholder(self, len(self.collections) - 1)
+
+    def run(self, node, symbols):
+        evaluated = [run(x, symbols) for x in self.collections]
+        for row in itertools.product(*evaluated):
+            self.row = row
+            yield run(node, symbols)
+
+def run(node, symbols):
     if isinstance(node, Module):
         for x in node.statements:
-            run(x, symbols, matching)
+            run(x, symbols)
 
     elif isinstance(node, Assignment):
-        if node.operator == "=":
-            symbols[node.symbol] = run(node.expression, symbols, matching)
-        elif node.operator == "~":
-            HERE
-        elif node.operator == "~~":
-            HERE
-        elif node.operator == "!~":
-            HERE
-        elif node.operator == "!~~":
-            HERE
+        if isinstance(node.expression, Matching.Placeholder):
+            symbols[node.symbol] = node.expression.value()
         else:
-            raise AssertionError(node.operator)
+            symbols[node.symbol] = run(node.expression, symbols)
 
     elif isinstance(node, Guard):
         HERE
@@ -313,47 +305,53 @@ def run(node, symbols, matching):
         HERE
 
     elif isinstance(node, Match):
-        return list(MatchingContext(node.expression))
+        out = list(node.matching.run(node.expression, symbols))
+        print(out)
+        return out
         
     elif isinstance(node, Pattern):
-        HERE
+        obj = {}
+        symbols = SymbolTable(symbols, obj)
+        for x in node.assignments:
+            run(x, symbols)
+        return obj
 
     elif isinstance(node, Function):
-        def function(arguments, symbols, matching):
+        def function(arguments, symbols):
             if len(node.parameters) != len(arguments):
                 raise TypeError("on line {0}, function expects {1} arguments, got {2}".format(node.line, len(node.parameters), len(arguments)))
             scope = {}
             for param, arg in zip(node.parameters, arguments):
-                scope[param] = run(arg, symbols, matching)
-            return run(node.body, SymbolTable(symbols, scope), matching)
+                scope[param] = run(arg, symbols)
+            return run(node.body, SymbolTable(symbols, scope))
         return function
 
     elif isinstance(node, Block):
-        symbols = SymbolTable(symbols, {}, matching)
+        symbols = SymbolTable(symbols, {})
         for x in node.statements:
-            run(x, symbols, matching)
-        return run(node.expression, symbols, matching)
+            run(x, symbols)
+        return run(node.expression, symbols)
 
     elif isinstance(node, Call):
         try:
-            return run(node.function, symbols, matching)(node.arguments, symbols, matching)
+            return run(node.function, symbols)(node.arguments, symbols)
         except Exception as err:
             raise RuntimeError("on line {0}, encountered {1}: {2}".format("???" if node.line is None else node.line, type(err).__name__, str(err)))
 
     elif isinstance(node, Subscript):
         try:
-            return run(node.object, symbols, matching)[run(node.index, symbols, matching)]
+            return run(node.object, symbols)[run(node.index, symbols)]
         except Exception as err:
             raise RuntimeError("on line {0}, encountered {1}: {2}".format("???" if node.line is None else node.line, type(err).__name__, str(err)))
 
     elif isinstance(node, Attribute):
         try:
-            return getattr(run(node.object, symbols, matching), node.field)
+            return getattr(run(node.object, symbols), node.field)
         except Exception as err:
             raise RuntimeError("on line {0}, encountered {1}: {2}".format("???" if node.line is None else node.line, type(err).__name__, str(err)))
         
     elif isinstance(node, Slice):
-        return slice(None if node.start is None else run(node.start, symbols, matching), None if node.stop is None else run(node.stop, symbols, matching), None)
+        return slice(None if node.start is None else run(node.start, symbols), None if node.stop is None else run(node.stop, symbols), None)
 
     elif isinstance(node, Symbol):
         try:
@@ -368,35 +366,35 @@ def run(node, symbols, matching):
         raise AssertionError(type(node))
 
 builtins = SymbolTable(None, {
-    "len":  lambda arguments, symbols, matching: len(run(arguments[0], symbols, matching)),
-    "abs":  lambda arguments, symbols, matching: abs(run(arguments[0], symbols, matching)),
+    "len":  lambda arguments, symbols: len(run(arguments[0], symbols)),
+    "abs":  lambda arguments, symbols: abs(run(arguments[0], symbols)),
 
-    "and":  lambda arguments, symbols, matching: run(arguments[0], symbols, matching) and run(arguments[1], symbols, matching),
-    "or":   lambda arguments, symbols, matching: run(arguments[0], symbols, matching) or run(arguments[1], symbols, matching),
-    "not":  lambda arguments, symbols, matching: not run(arguments[0], symbols, matching),
+    "and":  lambda arguments, symbols: run(arguments[0], symbols) and run(arguments[1], symbols),
+    "or":   lambda arguments, symbols: run(arguments[0], symbols) or run(arguments[1], symbols),
+    "not":  lambda arguments, symbols: not run(arguments[0], symbols),
 
-    "==":   lambda arguments, symbols, matching: run(arguments[0], symbols, matching) == run(arguments[1], symbols, matching),
-    "!=":   lambda arguments, symbols, matching: run(arguments[0], symbols, matching) != run(arguments[1], symbols, matching),
-    ">":    lambda arguments, symbols, matching: run(arguments[0], symbols, matching) > run(arguments[1], symbols, matching),
-    ">=":   lambda arguments, symbols, matching: run(arguments[0], symbols, matching) >= run(arguments[1], symbols, matching),
-    "<":    lambda arguments, symbols, matching: run(arguments[0], symbols, matching) < run(arguments[1], symbols, matching),
-    "<=":   lambda arguments, symbols, matching: run(arguments[0], symbols, matching) <= run(arguments[1], symbols, matching),
-    "+":    lambda arguments, symbols, matching: +run(arguments[0], symbols, matching) if len(arguments) == 1 else (run(arguments[0], symbols, matching) + run(arguments[1], symbols, matching)),
-    "-":    lambda arguments, symbols, matching: -run(arguments[0], symbols, matching) if len(arguments) == 1 else (run(arguments[0], symbols, matching) - run(arguments[1], symbols, matching)),
-    "*":    lambda arguments, symbols, matching: run(arguments[0], symbols, matching) * run(arguments[1], symbols, matching),
-    "/":    lambda arguments, symbols, matching: float(run(arguments[0], symbols, matching)) / float(run(arguments[1], symbols, matching)),
-    "**":   lambda arguments, symbols, matching: run(arguments[0], symbols, matching) ** run(arguments[1], symbols, matching),
+    "==":   lambda arguments, symbols: run(arguments[0], symbols) == run(arguments[1], symbols),
+    "!=":   lambda arguments, symbols: run(arguments[0], symbols) != run(arguments[1], symbols),
+    ">":    lambda arguments, symbols: run(arguments[0], symbols) > run(arguments[1], symbols),
+    ">=":   lambda arguments, symbols: run(arguments[0], symbols) >= run(arguments[1], symbols),
+    "<":    lambda arguments, symbols: run(arguments[0], symbols) < run(arguments[1], symbols),
+    "<=":   lambda arguments, symbols: run(arguments[0], symbols) <= run(arguments[1], symbols),
+    "+":    lambda arguments, symbols: +run(arguments[0], symbols) if len(arguments) == 1 else (run(arguments[0], symbols) + run(arguments[1], symbols)),
+    "-":    lambda arguments, symbols: -run(arguments[0], symbols) if len(arguments) == 1 else (run(arguments[0], symbols) - run(arguments[1], symbols)),
+    "*":    lambda arguments, symbols: run(arguments[0], symbols) * run(arguments[1], symbols),
+    "/":    lambda arguments, symbols: float(run(arguments[0], symbols)) / float(run(arguments[1], symbols)),
+    "**":   lambda arguments, symbols: run(arguments[0], symbols) ** run(arguments[1], symbols),
 
-    "sqrt": lambda arguments, symbols, matching: math.sqrt(run(arguments[0], symbols, matching)),
-    "exp":  lambda arguments, symbols, matching: math.exp(run(arguments[0], symbols, matching)),
-    "sin":  lambda arguments, symbols, matching: math.sin(run(arguments[0], symbols, matching)),
-    "cos":  lambda arguments, symbols, matching: math.cos(run(arguments[0], symbols, matching)),
-    "tan":  lambda arguments, symbols, matching: math.tan(run(arguments[0], symbols, matching)),
-    "sinh": lambda arguments, symbols, matching: math.sinh(run(arguments[0], symbols, matching)),
-    "cosh": lambda arguments, symbols, matching: math.cosh(run(arguments[0], symbols, matching)),
-    "tanh": lambda arguments, symbols, matching: math.tanh(run(arguments[0], symbols, matching)),
+    "sqrt": lambda arguments, symbols: math.sqrt(run(arguments[0], symbols)),
+    "exp":  lambda arguments, symbols: math.exp(run(arguments[0], symbols)),
+    "sin":  lambda arguments, symbols: math.sin(run(arguments[0], symbols)),
+    "cos":  lambda arguments, symbols: math.cos(run(arguments[0], symbols)),
+    "tan":  lambda arguments, symbols: math.tan(run(arguments[0], symbols)),
+    "sinh": lambda arguments, symbols: math.sinh(run(arguments[0], symbols)),
+    "cosh": lambda arguments, symbols: math.cosh(run(arguments[0], symbols)),
+    "tanh": lambda arguments, symbols: math.tanh(run(arguments[0], symbols)),
 
-    "union": lambda arguments, symbols, matching: sum((run(x, symbols, matching) for x in arguments), []),   # all sorts of unwarranted assumptions
+    "union": lambda arguments, symbols: sum((run(x, symbols) for x in arguments), []),   # all sorts of unwarranted assumptions
     })
 
 class LorentzVector:
@@ -423,21 +421,22 @@ symbols = SymbolTable(builtins, {"x": LorentzVector(1, 2, 3, 4)})
 run(toast(parser.parse("""
 quad(x, y) = sqrt(x**2 + y**2)
 q = quad(x.pz, x.E)
-""")), symbols, None)
+"""), None), symbols)
 print(symbols)
 
-# Q = collections.namedtuple("Q", ["id", "q"])
-# class X(ID): pass
-# class Y(ID): pass
+Q = collections.namedtuple("Q", ["id", "q"])
+class X(ID): pass
+class Y(ID): pass
 
-# symbols = SymbolTable(builtins, {"x": [Q(X(0), 1.1), Q(X(1), 2.2), Q(X(2), 3.3)], "y": [Q(Y(0), "A"), Q(Y(1), "B")]})
-# run(toast(parser.parse("""
-# z = match {
-#     xi ~ x
-#     yi ~ y
-# }
-# """)), symbols)
-# print(symbols)
+symbols = SymbolTable(builtins, {"x": [Q(X(0), 1.1), Q(X(1), 2.2), Q(X(2), 3.3)], "y": [Q(Y(0), "A"), Q(Y(1), "B")]})
+# symbols = SymbolTable(builtins, {"x": [1.1, 2.2, 3.3], "y": ["A", "B"]})
+run(toast(parser.parse("""
+z = match {
+    xi ~ x
+    yi ~ y
+}
+""")), symbols)
+print(symbols)
 
 # print(toast(parser.parse("""
 # higgs =
