@@ -4,6 +4,7 @@ import collections
 import functools
 import itertools
 import math
+import numpy
 
 import uproot
 
@@ -488,6 +489,19 @@ def listmethods_filter(object, arguments, symbols):
     return [x for x in object if f([Evaluated(x)], symbols)]
 listmethods["filter"] = listmethods_filter
 
+def listmethods_sort(object, arguments, symbols):
+    f = run(arguments[0], symbols)
+    order = numpy.argsort([f([Evaluated(x)], symbols) for x in object])
+    return numpy.array(object, dtype="O")[order].tolist()
+listmethods["sort"] = listmethods_sort
+
+def listmethods_top(object, arguments, symbols):
+    n = run(arguments[0], symbols)
+    f = run(arguments[1], symbols)
+    order = numpy.argsort([f([Evaluated(x)], symbols) for x in object])[:n]
+    return numpy.array(object, dtype="O")[order].tolist()
+listmethods["top"] = listmethods_top
+
 class LorentzVector(obj):
     def __init__(self, id, px, py, pz, E):
         super(LorentzVector, self).__init__(id)
@@ -552,9 +566,11 @@ higgs(flavor1, flavor2) =
         }
     }.filter(h => h.z1.lep1.charge != h.z1.lep2.charge and
                   h.z2.lep1.charge != h.z2.lep2.charge)
+     .sort(h => (h.z1.mass - 91)**2 + (h.z2.mass - 91)**2)
+     [:1]
 
-higgs4e = higgs(electrons, electrons)
-higgs4mu = higgs(muons, muons)
+higgs4e    = higgs(electrons, electrons)
+higgs4mu   = higgs(muons, muons)
 higgs2e2mu = higgs(electrons, muons)
 """)), symbols)
 
