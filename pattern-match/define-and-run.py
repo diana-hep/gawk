@@ -150,7 +150,7 @@ opname = {
     "symmetric": "~", "allsymmetric": "~~", "asymmetric": "!~", "allasymmetric": "!~~"
     }
 
-def toast(node, matching=None):
+def toast(node, matching):
     if node.data == "pass":
         return toast(node.children[0], matching)
     elif node.data == "start":
@@ -202,6 +202,9 @@ def toast(node, matching=None):
         return Call(Symbol(opname[node.data]), [toast(x, matching) for x in node.children])
     else:
         raise AssertionError(node.data)
+
+def ast(source):
+    return toast(parser.parse(source), None)
 
 class SymbolTable:
     def __init__(self, parent, symbols):
@@ -318,11 +321,11 @@ class Matching:
         return "<Matching at 0x{0:012x}>".format(id(self))
 
     def replace(self, node, unique):
-        ast = toast(node, self)
-        if isinstance(ast, Pattern):
-            return ast
+        toasted = toast(node, self)
+        if isinstance(toasted, Pattern):
+            return toasted
         else:
-            self.collections.append(ast)
+            self.collections.append(toasted)
             self.unique.append(unique)
             return self.Placeholder(self, len(self.collections) - 1)
 
@@ -520,38 +523,31 @@ class LorentzVector(obj):
     def __add__(self, other):
         return LorentzVector((self.id, other.id), self.px + other.px, self.py + other.py, self.pz + other.pz, self.E + other.E)
 
-# class L(ID): pass
-# symbols = SymbolTable(builtins, {"x": LorentzVector(L(0), 1, 2, 3, 4)})
-# run(toast(parser.parse("""
-# quad(x, y) = sqrt(x**2 + y**2)
-# q = quad(x.pz, x.E)
-# """), None), symbols)
-# print(symbols)
+class L(ID): pass
+symbols = SymbolTable(builtins, {"x": LorentzVector(L(0), 1, 2, 3, 4)})
+run(ast("""
+quad(x, y) = sqrt(x**2 + y**2)
+q = quad(x.pz, x.E)
+"""), symbols)
+print(symbols)
 
-# class X(ID): pass
-# class Y(ID): pass
-# symbols = SymbolTable(builtins, {"x": [obj(X(0), a=0.0), obj(X(1), a=1.1), obj(X(2), a=2.2)],
-#                                  "y": [obj(Y(0), b="one"), obj(Y(1), b="two")]})
-# run(toast(parser.parse("""
-# z = join {
-#     xi ~ x
-#     yi ~ y
-# }
-# """)), symbols)
-# print(symbols)
+class X(ID): pass
+class Y(ID): pass
+symbols = SymbolTable(builtins, {"x": [obj(X(0), a=0.0), obj(X(1), a=1.1), obj(X(2), a=2.2)],
+                                 "y": [obj(Y(0), b="one"), obj(Y(1), b="two")]})
+run(ast("""
+z = join {
+    xi ~ x
+    yi ~ y
+}
+"""), symbols)
+print(symbols)
 
 events = uproot.open("http://scikit-hep.org/uproot/examples/HZZ.root")["events"]
 Electron_Px, Electron_Py, Electron_Pz, Electron_E, Electron_Charge = events.arrays(["Electron_Px", "Electron_Py", "Electron_Pz", "Electron_E", "Electron_Charge"], outputtype=tuple, entrystop=33)
 Muon_Px, Muon_Py, Muon_Pz, Muon_E, Muon_Charge = events.arrays(["Muon_Px", "Muon_Py", "Muon_Pz", "Muon_E", "Muon_Charge"], outputtype=tuple, entrystop=33)
 
-class E(ID): pass
-class M(ID): pass
-for i in range(len(Muon_Px)):
-    symbols = SymbolTable(builtins, {
-        "electrons": [obj(E(j), p4=LorentzVector(E(j), Electron_Px[i][j], Electron_Py[i][j], Electron_Pz[i][j], Electron_E[i][j]), charge=Electron_Charge[i][j]) for j in range(len(Electron_Px[i]))],
-        "muons": [obj(M(j), p4=LorentzVector(M(j), Muon_Px[i][j], Muon_Py[i][j], Muon_Pz[i][j], Muon_E[i][j]), charge=Muon_Charge[i][j]) for j in range(len(Muon_Px[i]))],
-        })
-    run(toast(parser.parse("""
+higgs_finder = ast("""
 higgs(flavor1, flavor2) =
     join {
         z1 ~ {
@@ -572,7 +568,16 @@ higgs(flavor1, flavor2) =
 higgs4e    = higgs(electrons, electrons)
 higgs4mu   = higgs(muons, muons)
 higgs2e2mu = higgs(electrons, muons)
-""")), symbols)
+""")
+
+class E(ID): pass
+class M(ID): pass
+for i in range(len(Muon_Px)):
+    symbols = SymbolTable(builtins, {
+        "electrons": [obj(E(j), p4=LorentzVector(E(j), Electron_Px[i][j], Electron_Py[i][j], Electron_Pz[i][j], Electron_E[i][j]), charge=Electron_Charge[i][j]) for j in range(len(Electron_Px[i]))],
+        "muons": [obj(M(j), p4=LorentzVector(M(j), Muon_Px[i][j], Muon_Py[i][j], Muon_Pz[i][j], Muon_E[i][j]), charge=Muon_Charge[i][j]) for j in range(len(Muon_Px[i]))],
+        })
+    run(higgs_finder, symbols)
 
     del symbols["electrons"]
     del symbols["muons"]
