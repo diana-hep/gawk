@@ -79,12 +79,6 @@ class AST:
     def __repr__(self):
         return "{0}({1})".format(type(self).__name__, ", ".join(getattr(self, n) for n in self._fields))
 
-    def copy(self, **replacements):
-        out = type(self).__new__(type(self))
-        out.__dict__ = dict(self.__dict__)
-        out.__dict__.update(replacements)
-        return out
-
 class Module(AST):
     _fields = ("statements",)
     def __str__(self):
@@ -227,6 +221,14 @@ class SymbolTable:
         else:
             self.symbols[symbol] = value
 
+    def __delitem__(self, symbol):
+        if symbol in self.symbols:
+            del self.symbols[symbol]
+        elif self.parent is not None:
+            del self.parent[symbol]
+        else:
+            raise KeyError(symbol)
+
     def __str__(self):
         out = []
         for n, x in self.symbols.items():
@@ -310,15 +312,18 @@ class Matching:
     def __init__(self):
         self.collections = []
         self.unique = []
-        self.Skip = type("Skip", (Exception,), {})
 
     def __repr__(self):
         return "<Matching at 0x{0:012x}>".format(id(self))
 
     def replace(self, node, unique):
-        self.collections.append(toast(node, self))
-        self.unique.append(unique)
-        return self.Placeholder(self, len(self.collections) - 1)
+        ast = toast(node, self)
+        if isinstance(ast, Pattern):
+            return ast
+        else:
+            self.collections.append(ast)
+            self.unique.append(unique)
+            return self.Placeholder(self, len(self.collections) - 1)
 
     def run(self, node, symbols):
         evaluated = [run(x, symbols) for x in self.collections]
@@ -462,9 +467,19 @@ builtins = SymbolTable(None, {
     "sinh": lambda arguments, symbols: math.sinh(run(arguments[0], symbols)),
     "cosh": lambda arguments, symbols: math.cosh(run(arguments[0], symbols)),
     "tanh": lambda arguments, symbols: math.tanh(run(arguments[0], symbols)),
-
-    "union": lambda arguments, symbols: sum((run(x, symbols) for x in arguments), []),   # all sorts of unwarranted assumptions
     })
+
+def builtins_union(arguments, symbols):
+    out = []
+    ids = set()
+    for arg in arguments:
+        collection = run(arg, symbols)
+        for x in collection:
+            if x._id not in ids:
+                out.append(x)
+            ids.add(x._id)
+    return out
+builtins["union"] = builtins_union
 
 listmethods = {}
 
@@ -491,29 +506,29 @@ class LorentzVector(obj):
     def __add__(self, other):
         return LorentzVector((self.id, other.id), self.px + other.px, self.py + other.py, self.pz + other.pz, self.E + other.E)
 
-class L(ID): pass
-symbols = SymbolTable(builtins, {"x": LorentzVector(L(0), 1, 2, 3, 4)})
-run(toast(parser.parse("""
-quad(x, y) = sqrt(x**2 + y**2)
-q = quad(x.pz, x.E)
-"""), None), symbols)
-print(symbols)
+# class L(ID): pass
+# symbols = SymbolTable(builtins, {"x": LorentzVector(L(0), 1, 2, 3, 4)})
+# run(toast(parser.parse("""
+# quad(x, y) = sqrt(x**2 + y**2)
+# q = quad(x.pz, x.E)
+# """), None), symbols)
+# print(symbols)
 
-class X(ID): pass
-class Y(ID): pass
-symbols = SymbolTable(builtins, {"x": [obj(X(0), a=0.0), obj(X(1), a=1.1), obj(X(2), a=2.2)],
-                                 "y": [obj(Y(0), b="one"), obj(Y(1), b="two")]})
-run(toast(parser.parse("""
-z = join {
-    xi ~ x
-    yi ~ y
-}
-""")), symbols)
-print(symbols)
+# class X(ID): pass
+# class Y(ID): pass
+# symbols = SymbolTable(builtins, {"x": [obj(X(0), a=0.0), obj(X(1), a=1.1), obj(X(2), a=2.2)],
+#                                  "y": [obj(Y(0), b="one"), obj(Y(1), b="two")]})
+# run(toast(parser.parse("""
+# z = join {
+#     xi ~ x
+#     yi ~ y
+# }
+# """)), symbols)
+# print(symbols)
 
 events = uproot.open("http://scikit-hep.org/uproot/examples/HZZ.root")["events"]
-Electron_Px, Electron_Py, Electron_Pz, Electron_E, Electron_Charge = events.arrays(["Electron_Px", "Electron_Py", "Electron_Pz", "Electron_E", "Electron_Charge"], outputtype=tuple, entrystop=5)
-Muon_Px, Muon_Py, Muon_Pz, Muon_E, Muon_Charge = events.arrays(["Muon_Px", "Muon_Py", "Muon_Pz", "Muon_E", "Muon_Charge"], outputtype=tuple, entrystop=5)
+Electron_Px, Electron_Py, Electron_Pz, Electron_E, Electron_Charge = events.arrays(["Electron_Px", "Electron_Py", "Electron_Pz", "Electron_E", "Electron_Charge"], outputtype=tuple, entrystop=33)
+Muon_Px, Muon_Py, Muon_Pz, Muon_E, Muon_Charge = events.arrays(["Muon_Px", "Muon_Py", "Muon_Pz", "Muon_E", "Muon_Charge"], outputtype=tuple, entrystop=33)
 
 class E(ID): pass
 class M(ID): pass
@@ -522,17 +537,27 @@ for i in range(len(Muon_Px)):
         "electrons": [obj(E(j), p4=LorentzVector(E(j), Electron_Px[i][j], Electron_Py[i][j], Electron_Pz[i][j], Electron_E[i][j]), charge=Electron_Charge[i][j]) for j in range(len(Electron_Px[i]))],
         "muons": [obj(M(j), p4=LorentzVector(M(j), Muon_Px[i][j], Muon_Py[i][j], Muon_Pz[i][j], Muon_E[i][j]), charge=Muon_Charge[i][j]) for j in range(len(Muon_Px[i]))],
         })
-run(toast(parser.parse("""
-higgs =
+    run(toast(parser.parse("""
+higgs(flavor1, flavor2) =
     join {
         z1 ~ {
-            mu1 ~ muons
-            mu2 ~ muons
+            lep1 ~ flavor1
+            lep2 ~ flavor1
+            mass = (lep1.p4 + lep2.p4).mass
         }
         z2 ~ {
-            mu1 ~ muons
-            mu2 ~ muons
+            lep1 ~ flavor2
+            lep2 ~ flavor2
+            mass = (lep1.p4 + lep2.p4).mass
         }
-    }
+    }.filter(h => h.z1.lep1.charge != h.z1.lep2.charge and
+                  h.z2.lep1.charge != h.z2.lep2.charge)
+
+higgs4e = higgs(electrons, electrons)
+higgs4mu = higgs(muons, muons)
+higgs2e2mu = higgs(electrons, muons)
 """)), symbols)
-print(symbols)
+
+    del symbols["electrons"]
+    del symbols["muons"]
+    print(symbols)
