@@ -21,9 +21,7 @@ patassign:  CNAME "=" expression
           | CNAME "~~" expression -> allsymmetric
           | CNAME "!~" expression -> asymmetric
           | CNAME "!~~" expression -> allasymmetric
-guard:      "if" expression
-sorter:     "sort" expression
-pattern:    (NEWLINE | ";")* (patassign (NEWLINE | ";")+)* patassign [(NEWLINE | ";")+ guard]  [(NEWLINE | ";")+ sorter] (NEWLINE | ";")*
+pattern:    (NEWLINE | ";")* (patassign (NEWLINE | ";")+)* patassign (NEWLINE | ";")*
 block:      (NEWLINE | ";")* (statement (NEWLINE | ";")+)* expression (NEWLINE | ";")*
 
 expression: function   -> pass
@@ -46,7 +44,7 @@ atom:       CNAME -> symbol | INT -> int | FLOAT -> float
           | "(" expression ")" -> pass
           | "{" block "}" -> pass
           | "{" pattern "}" -> pass
-          | "match" expression -> match
+          | "join" expression -> join
 
 paramlist:  "(" [CNAME ("," CNAME)*] ")" | CNAME
 arglist:    expression ("," expression)*
@@ -96,25 +94,18 @@ class Assignment(AST):
     def __str__(self):
         return "{0} {1} {2}".format(self.symbol, self.operator, str(self.expression))
 
-class Guard(AST):
-    _fields = ("expression",)
-    def __str__(self):
-        return "if " + str(self.expression)
-
-class Sorter(AST):
-    _fields = ("expression",)
-    def __str__(self):
-        return "sort " + str(self.expression)
-
 class Pattern(AST):
     _fields = ("assignments",)
+    def __init__(self, *args, **kwargs):
+        super(Pattern, self).__init__(*args, **kwargs)
+        self.ID = type("Line{0}".format(self.line), (ID,), {})
     def __str__(self):
         return "{" + "; ".join(str(x) for x in self.assignments) + "}"
 
-class Match(AST):
+class Join(AST):
     _fields = ("expression", "matching")
     def __str__(self):
-        return "match " + str(self.expression)
+        return "join " + str(self.expression)
 
 class Function(AST):
     _fields = ("parameters", "body")
@@ -177,15 +168,11 @@ def toast(node, matching=None):
         if matching is None:
             raise SyntaxError("cannot use {0} operator outside of a match {...}".format(opname[node.data]))
         return Assignment(str(node.children[0]), opname[node.data], matching.replace(node.children[1]))
-    elif node.data == "guard":
-        return Guard(toast(node.children[0], matching))
-    elif node.data == "sorter":
-        return Sorter(toast(node.children[0], matching))
     elif node.data == "pattern":
         return Pattern([toast(x, matching) for x in node.children if not isinstance(x, lark.lexer.Token)])
-    elif node.data == "match":
+    elif node.data == "join":
         m = Matching()
-        return Match(toast(node.children[0], m), m)
+        return Join(toast(node.children[0], m), m)
     elif node.data == "function":
         return Function(toast(node.children[0], matching), toast(node.children[1], None))
     elif node.data == "paramlist":
@@ -235,6 +222,8 @@ class SymbolTable:
             raise KeyError(symbol)
 
     def __setitem__(self, symbol, value):
+        print("HERE", symbol, value, self.symbols)
+
         if symbol in self.symbols:
             raise TypeError("symbol {0} has multiple definitions at this scope".format(repr(symbol)))
         else:
@@ -261,6 +250,24 @@ class ID:
         else:
             return type(self).__name__ < type(other).__name__
 
+class obj:
+    def __init__(self, id, **fields):
+        self._id = id
+        self._fields = collections.OrderedDict(fields.items())
+    def __contains__(self, n):
+        return n in self._fields
+    def __getitem__(self, n):
+        return self._fields[n]
+    def __setitem__(self, n, x):
+        self._fields[n] = x
+    def __getattr__(self, n):
+        if n in self._fields:
+            return self._fields[n]
+        else:
+            raise AttributeError("{0} object has no attribute {1}".format(repr(type(self).__name__), repr(n)))
+    def __repr__(self):
+        return "{0}({1}{2})".format(type(self).__name__, self._id, "".join(", {0}={1}".format(n, repr(x)) for n, x in self._fields.items()))
+
 class Matching:
     class Placeholder:
         def __init__(self, m, n):
@@ -283,8 +290,8 @@ class Matching:
 
     def run(self, node, symbols):
         evaluated = [run(x, symbols) for x in self.collections]
-        for row in itertools.product(*evaluated):
-            self.row = row
+        for i, row in enumerate(itertools.product(*evaluated)):
+            self.i, self.row = i, row
             yield run(node, symbols)
 
 def run(node, symbols):
@@ -298,21 +305,15 @@ def run(node, symbols):
         else:
             symbols[node.symbol] = run(node.expression, symbols)
 
-    elif isinstance(node, Guard):
-        HERE
-
-    elif isinstance(node, Sorter):
-        HERE
-
-    elif isinstance(node, Match):
+    elif isinstance(node, Join):
         return list(node.matching.run(node.expression, symbols))
         
     elif isinstance(node, Pattern):
-        obj = {}
-        symbols = SymbolTable(symbols, obj)
+        out = obj(999)
+        symbols = SymbolTable(symbols, out)
         for x in node.assignments:
             run(x, symbols)
-        return obj
+        return out
 
     elif isinstance(node, Function):
         def function(arguments, symbols):
@@ -429,39 +430,33 @@ class Y(ID): pass
 # symbols = SymbolTable(builtins, {"x": [Q(X(0), 1.1), Q(X(1), 2.2), Q(X(2), 3.3)], "y": [Q(Y(0), "A"), Q(Y(1), "B")]})
 symbols = SymbolTable(builtins, {"x": [1.1, 2.2, 3.3], "y": ["A", "B"]})
 run(toast(parser.parse("""
-z = match {
-    xi ~ x
-    ys = match {
-        yi ~ y
-    }
+z = {
+    xi = 3
 }
 """)), symbols)
 print(symbols)
 
 # print(toast(parser.parse("""
 # higgs =
-#     match {
+#     join {
 #         z1 ~ {
 #             mu1 ~ muons
 #             mu2 ~ muons
 #             p4 = mu1.p4 + mu2.p4
-#             if mu1.charge != mu2.charge
 #         }
 #         z2 ~ {
 #             mu1 ~ muons
 #             mu2 ~ muons
 #             p4 = mu1.p4 + mu2.p4
-#             if mu1.charge != mu2.charge
 #         }
 #         p4 = z1.p4 + z2.p4
-#         sort (z1 - 91)**2 + (z2 - 91)**2
 #     }
 # """)))
 
 # print(toast(parser.parse("""
-# genreco = match {
+# genreco = join {
 #     gen ~ generator
-#     reco = match reconstructed
+#     reco = join reconstructed
 # }
 # """)))
 
