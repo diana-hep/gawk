@@ -305,9 +305,7 @@ def run(node, symbols):
         HERE
 
     elif isinstance(node, Match):
-        out = list(node.matching.run(node.expression, symbols))
-        print(out)
-        return out
+        return list(node.matching.run(node.expression, symbols))
         
     elif isinstance(node, Pattern):
         obj = {}
@@ -428,12 +426,14 @@ Q = collections.namedtuple("Q", ["id", "q"])
 class X(ID): pass
 class Y(ID): pass
 
-symbols = SymbolTable(builtins, {"x": [Q(X(0), 1.1), Q(X(1), 2.2), Q(X(2), 3.3)], "y": [Q(Y(0), "A"), Q(Y(1), "B")]})
-# symbols = SymbolTable(builtins, {"x": [1.1, 2.2, 3.3], "y": ["A", "B"]})
+# symbols = SymbolTable(builtins, {"x": [Q(X(0), 1.1), Q(X(1), 2.2), Q(X(2), 3.3)], "y": [Q(Y(0), "A"), Q(Y(1), "B")]})
+symbols = SymbolTable(builtins, {"x": [1.1, 2.2, 3.3], "y": ["A", "B"]})
 run(toast(parser.parse("""
 z = match {
     xi ~ x
-    yi ~ y
+    ys = match {
+        yi ~ y
+    }
 }
 """)), symbols)
 print(symbols)
