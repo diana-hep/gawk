@@ -41,10 +41,9 @@ call:       atom          -> pass
           | call "(" arglist ")"  | call "[" slice "]" -> subscript | call "." CNAME -> attribute
 
 atom:       CNAME -> symbol | INT -> int | FLOAT -> float
-          | "(" expression ")" -> pass
-          | "{" block "}" -> pass
+          | "(" block ")" -> pass
           | "{" pattern "}" -> pass
-          | "join" expression -> join
+          | "join" "{" pattern "}" -> join
 
 paramlist:  "(" [CNAME ("," CNAME)*] ")" | CNAME
 arglist:    expression ("," expression)*
@@ -231,13 +230,14 @@ class SymbolTable:
         out = []
         for n, x in self.symbols.items():
             if not callable(x):
+                first = (len(out) == 0)
+                start = ("" if first else " ") + repr(n) + ": "
                 if isinstance(x, list):
-                    start = repr(n) + ": ["
-                    out.append(start + ("\n" + " " * len(start)).join(repr(xi) for xi in x) + "]")
+                    out.append(start + "[" + ("\n" + " " * len(start) + ("  " if first else " ")).join(repr(xi) for xi in x) + "]")
                 else:
-                    out.append(repr(n) + ": " + repr(x))
+                    out.append(start + repr(x))
         return "{" + ",\n".join(out) + "}"
-
+    
 @functools.total_ordering
 class ID:
     def __init__(self, n):
@@ -320,6 +320,13 @@ class Matching:
             self.i, self.row = i, row
             yield run(node, symbols)
 
+class Method:
+    def __init__(self, object, function):
+        self.object = object
+        self.function = function
+    def __repr__(self):
+        return "Method({0}, {1})".format(self.object, self.function)
+
 def run(node, symbols):
     if isinstance(node, Module):
         for x in node.statements:
@@ -334,16 +341,13 @@ def run(node, symbols):
             symbols.symbols._asymm.add(node.symbol)
 
     elif isinstance(node, Join):
-        if isinstance(node.expression, Pattern):
-            node.matching.seen = set()
-            out = []
-            for result in node.matching.run(node.expression, symbols):
-                if result.id not in node.matching.seen:
-                    out.append(result)
-                node.matching.seen.add(result.id)
-            return out
-        else:
-            HERE
+        node.matching.seen = set()
+        out = []
+        for result in node.matching.run(node.expression, symbols):
+            if result.id not in node.matching.seen:
+                out.append(result)
+            node.matching.seen.add(result.id)
+        return out
 
     elif isinstance(node, Pattern):
         if node.matching is None:
@@ -372,10 +376,14 @@ def run(node, symbols):
         return run(node.expression, symbols)
 
     elif isinstance(node, Call):
-        try:
-            return run(node.function, symbols)(node.arguments, symbols)
-        except Exception as err:
-            raise RuntimeError("on line {0}, encountered {1}: {2}".format("???" if node.line is None else node.line, type(err).__name__, str(err)))
+        x = run(node.function, symbols)
+        if isinstance(x, Method):
+            return x.function(x.object, node.arguments, symbols)
+        else:
+            try:
+                return x(node.arguments, symbols)
+            except Exception as err:
+                raise RuntimeError("on line {0}, encountered {1}: {2}".format("???" if node.line is None else node.line, type(err).__name__, str(err)))
 
     elif isinstance(node, Subscript):
         try:
@@ -384,10 +392,14 @@ def run(node, symbols):
             raise RuntimeError("on line {0}, encountered {1}: {2}".format("???" if node.line is None else node.line, type(err).__name__, str(err)))
 
     elif isinstance(node, Attribute):
-        try:
-            return getattr(run(node.object, symbols), node.field)
-        except Exception as err:
-            raise RuntimeError("on line {0}, encountered {1}: {2}".format("???" if node.line is None else node.line, type(err).__name__, str(err)))
+        x = run(node.object, symbols)
+        if isinstance(x, list):
+            return Method(x, listmethods[node.field])
+        else:
+            try:
+                return getattr(x, node.field)
+            except Exception as err:
+                raise RuntimeError("on line {0}, encountered {1}: {2}".format("???" if node.line is None else node.line, type(err).__name__, str(err)))
         
     elif isinstance(node, Slice):
         return slice(None if node.start is None else run(node.start, symbols), None if node.stop is None else run(node.stop, symbols), None)
@@ -436,6 +448,10 @@ builtins = SymbolTable(None, {
     "union": lambda arguments, symbols: sum((run(x, symbols) for x in arguments), []),   # all sorts of unwarranted assumptions
     })
 
+listmethods = {
+    "filter": lambda object, arguments, symbols: object
+    }
+
 class LorentzVector:
     def __init__(self, px, py, pz, E):
         self.px = px
@@ -456,23 +472,27 @@ class LorentzVector:
     def __add__(self, other):
         return LorentzVector(self.px + other.px, self.py + other.py, self.pz + other.pz, self.E + other.E)
 
-# symbols = SymbolTable(builtins, {"x": LorentzVector(1, 2, 3, 4)})
-# run(toast(parser.parse("""
-# quad(x, y) = sqrt(x**2 + y**2)
-# q = quad(x.pz, x.E)
-# """), None), symbols)
-# print(symbols)
+symbols = SymbolTable(builtins, {"x": LorentzVector(1, 2, 3, 4)})
+run(toast(parser.parse("""
+quad(x, y) = sqrt(x**2 + y**2)
+q = quad(x.pz, x.E)
+"""), None), symbols)
+print(symbols)
 
 class X(ID): pass
 class Y(ID): pass
-
 symbols = SymbolTable(builtins, {"x": [obj(X(0), a=0.0), obj(X(1), a=1.1), obj(X(2), a=2.2)],
                                  "y": [obj(Y(0), b="one"), obj(Y(1), b="two")]})
+# run(toast(parser.parse("""
+# z = join {
+#     xi ~ x
+#     yi ~ y
+# }
+# """)), symbols)
+# print(symbols)
+
 run(toast(parser.parse("""
-z = join {
-    xi ~ x
-    yi ~ y
-}
+z = x.filter()
 """)), symbols)
 print(symbols)
 
