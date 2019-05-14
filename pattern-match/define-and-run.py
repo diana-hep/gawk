@@ -99,7 +99,6 @@ class Pattern(AST):
     _fields = ("assignments", "matching")
     def __init__(self, *args, **kwargs):
         super(Pattern, self).__init__(*args, **kwargs)
-        self.ID = type("Line{0}".format(self.line), (ID,), {})
     def __str__(self):
         return "{" + "; ".join(str(x) for x in self.assignments) + "}"
 
@@ -167,7 +166,7 @@ def toast(node, matching=None):
         return Assignment(str(node.children[0]), "=", toast(node.children[1], matching), line=node.children[0].line)
     elif node.data == "symmetric" or node.data == "allsymmetric" or node.data == "asymmetric" or node.data == "allasymmetric":
         if matching is None:
-            raise SyntaxError("cannot use {0} operator outside of a match {...}".format(opname[node.data]))
+            raise SyntaxError("cannot use {0} operator outside of a join".format(opname[node.data]))
         return Assignment(str(node.children[0]), opname[node.data], matching.replace(node.children[1]), line=node.children[0].line)
     elif node.data == "pattern":
         return Pattern([toast(x, matching) for x in node.children if not isinstance(x, lark.lexer.Token)], matching)
@@ -273,12 +272,15 @@ class obj:
         if self._id is None:
             asymm, symm = [], []
             for n, x in self._fields.items():
-                assert isinstance(x, obj)
-                if n in self._asymm:
-                    asymm.append(x.id)
-                else:
-                    symm.append(x.id)
-            return tuple(sorted(symm) + asymm)
+                if isinstance(x, obj):
+                    if n in self._asymm:
+                        asymm.append(x.id)
+                    else:
+                        symm.append(x.id)
+            if len(symm) + len(asymm) == 0:
+                return ID(None)
+            else:
+                return tuple(sorted(symm) + asymm)
         else:
             return self._id
     def __contains__(self, n):
@@ -361,10 +363,7 @@ def run(node, symbols):
         return out
 
     elif isinstance(node, Pattern):
-        if node.matching is None:
-            out = obj(node.ID(None))
-        else:
-            out = obj()
+        out = obj()
         symbols = SymbolTable(symbols, out)
         for x in node.assignments:
             run(x, symbols)
@@ -501,9 +500,9 @@ symbols = SymbolTable(builtins, {"x": [obj(X(0), a=0.0), obj(X(1), a=1.1), obj(X
                                  "y": [obj(Y(0), b="one"), obj(Y(1), b="two")]})
 run(toast(parser.parse("""
 z = join {
-    xi ~ x
+    xi ~ y
     yi ~ y
-}.filter(zi => zi.xi.a > 1 and zi.xi.a < 2)
+}
 """)), symbols)
 print(symbols)
 
