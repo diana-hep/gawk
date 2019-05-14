@@ -161,13 +161,13 @@ def toast(node, matching=None):
     elif node.data == "start":
         return Module([toast(x, matching) for x in node.children if not isinstance(x, lark.lexer.Token)])
     elif node.data == "funcassign":
-        return Assignment(str(node.children[0]), "=", Function(node.children[1:-1], toast(node.children[-1], matching)))
+        return Assignment(str(node.children[0]), "=", Function(node.children[1:-1], toast(node.children[-1], matching)), line=node.children[0].line)
     elif node.data == "assignment" or node.data == "patassign":
-        return Assignment(str(node.children[0]), "=", toast(node.children[1], matching))
+        return Assignment(str(node.children[0]), "=", toast(node.children[1], matching), line=node.children[0].line)
     elif node.data == "symmetric" or node.data == "allsymmetric" or node.data == "asymmetric" or node.data == "allasymmetric":
         if matching is None:
             raise SyntaxError("cannot use {0} operator outside of a match {...}".format(opname[node.data]))
-        return Assignment(str(node.children[0]), opname[node.data], matching.replace(node.children[1]))
+        return Assignment(str(node.children[0]), opname[node.data], matching.replace(node.children[1]), line=node.children[0].line)
     elif node.data == "pattern":
         return Pattern([toast(x, matching) for x in node.children if not isinstance(x, lark.lexer.Token)], matching)
     elif node.data == "join":
@@ -417,23 +417,21 @@ class LorentzVector:
     def __add__(self, other):
         return LorentzVector(self.px + other.px, self.py + other.py, self.pz + other.pz, self.E + other.E)
 
-symbols = SymbolTable(builtins, {"x": LorentzVector(1, 2, 3, 4)})
-run(toast(parser.parse("""
-quad(x, y) = sqrt(x**2 + y**2)
-q = quad(x.pz, x.E)
-"""), None), symbols)
-print(symbols)
-
-Q = collections.namedtuple("Q", ["id", "q"])
-class X(ID): pass
-class Y(ID): pass
+# symbols = SymbolTable(builtins, {"x": LorentzVector(1, 2, 3, 4)})
+# run(toast(parser.parse("""
+# quad(x, y) = sqrt(x**2 + y**2)
+# q = quad(x.pz, x.E)
+# """), None), symbols)
+# print(symbols)
 
 # symbols = SymbolTable(builtins, {"x": [Q(X(0), 1.1), Q(X(1), 2.2), Q(X(2), 3.3)], "y": [Q(Y(0), "A"), Q(Y(1), "B")]})
 symbols = SymbolTable(builtins, {"x": [1.1, 2.2, 3.3], "y": ["A", "B"]})
 run(toast(parser.parse("""
 z = join {
     xi ~ x
-    yi ~ y
+    ys = join {
+        yi ~ y
+    }
 }
 """)), symbols)
 print(symbols)
