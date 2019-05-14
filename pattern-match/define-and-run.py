@@ -38,7 +38,9 @@ term:       factor        -> pass | factor "*" term -> mul | factor "/" term -> 
 factor:     pow           -> pass | "+" factor      -> pos | "-" factor      -> neg
 pow:        call          -> pass | call "**" factor
 call:       atom          -> pass
-          | call "(" arglist ")"  | call "[" slice "]" -> subscript | call "." CNAME -> attribute
+          | call "(" arglist ")"
+          | call "[" slice "]" -> subscript
+          | call "." CNAME -> attribute
 
 atom:       CNAME -> symbol | INT -> int | FLOAT -> float
           | "(" block ")" -> pass
@@ -46,7 +48,7 @@ atom:       CNAME -> symbol | INT -> int | FLOAT -> float
           | "join" "{" pattern "}" -> join
 
 paramlist:  "(" [CNAME ("," CNAME)*] ")" | CNAME
-arglist:    expression ("," expression)*
+arglist:    [expression] ("," expression)*
 slice:      expression -> pass
           | expression ":" -> slice1 | ":" expression -> slice2 | expression ":" expression -> slice12
 
@@ -327,8 +329,17 @@ class Method:
     def __repr__(self):
         return "Method({0}, {1})".format(self.object, self.function)
 
+class Evaluated:
+    def __init__(self, value):
+        self.value = value
+    def __repr__(self):
+        return "Evaluated({0})".format(self.value)
+
 def run(node, symbols):
-    if isinstance(node, Module):
+    if isinstance(node, Evaluated):
+        return node.value
+
+    elif isinstance(node, Module):
         for x in node.statements:
             run(x, symbols)
 
@@ -395,11 +406,13 @@ def run(node, symbols):
         x = run(node.object, symbols)
         if isinstance(x, list):
             return Method(x, listmethods[node.field])
-        else:
+        elif isinstance(x, obj):
             try:
                 return getattr(x, node.field)
             except Exception as err:
                 raise RuntimeError("on line {0}, encountered {1}: {2}".format("???" if node.line is None else node.line, type(err).__name__, str(err)))
+        else:
+            raise AssertionError(type(x))
         
     elif isinstance(node, Slice):
         return slice(None if node.start is None else run(node.start, symbols), None if node.stop is None else run(node.stop, symbols), None)
@@ -448,51 +461,49 @@ builtins = SymbolTable(None, {
     "union": lambda arguments, symbols: sum((run(x, symbols) for x in arguments), []),   # all sorts of unwarranted assumptions
     })
 
-listmethods = {
-    "filter": lambda object, arguments, symbols: object
-    }
+listmethods = {}
 
-class LorentzVector:
-    def __init__(self, px, py, pz, E):
-        self.px = px
-        self.py = py
-        self.pz = pz
-        self.E = E
-    def __repr__(self):
-        return "LorentzVector({0:g}, {1:g}, {2:g}, {3:g})".format(self.px, self.py, self.pz, self.E)
-    @property
-    def pt(self):
-        return math.sqrt(self.px**2 + self.py**2)
-    @property
-    def mass(self):
-        try:
-            return math.sqrt(self.E**2 - self.px**2 - self.py**2 - self.pz**2)
-        except ValueError:
-            return float("nan")
-    def __add__(self, other):
-        return LorentzVector(self.px + other.px, self.py + other.py, self.pz + other.pz, self.E + other.E)
+def listmethods_filter(object, arguments, symbols):
+    f = run(arguments[0], symbols)
+    return [x for x in object if f([Evaluated(x)], symbols)]
+listmethods["filter"] = listmethods_filter
 
-symbols = SymbolTable(builtins, {"x": LorentzVector(1, 2, 3, 4)})
-run(toast(parser.parse("""
-quad(x, y) = sqrt(x**2 + y**2)
-q = quad(x.pz, x.E)
-"""), None), symbols)
-print(symbols)
+# class LorentzVector:
+#     def __init__(self, px, py, pz, E):
+#         self.px = px
+#         self.py = py
+#         self.pz = pz
+#         self.E = E
+#     def __repr__(self):
+#         return "LorentzVector({0:g}, {1:g}, {2:g}, {3:g})".format(self.px, self.py, self.pz, self.E)
+#     @property
+#     def pt(self):
+#         return math.sqrt(self.px**2 + self.py**2)
+#     @property
+#     def mass(self):
+#         try:
+#             return math.sqrt(self.E**2 - self.px**2 - self.py**2 - self.pz**2)
+#         except ValueError:
+#             return float("nan")
+#     def __add__(self, other):
+#         return LorentzVector(self.px + other.px, self.py + other.py, self.pz + other.pz, self.E + other.E)
+
+# symbols = SymbolTable(builtins, {"x": LorentzVector(1, 2, 3, 4)})
+# run(toast(parser.parse("""
+# quad(x, y) = sqrt(x**2 + y**2)
+# q = quad(x.pz, x.E)
+# """), None), symbols)
+# print(symbols)
 
 class X(ID): pass
 class Y(ID): pass
 symbols = SymbolTable(builtins, {"x": [obj(X(0), a=0.0), obj(X(1), a=1.1), obj(X(2), a=2.2)],
                                  "y": [obj(Y(0), b="one"), obj(Y(1), b="two")]})
-# run(toast(parser.parse("""
-# z = join {
-#     xi ~ x
-#     yi ~ y
-# }
-# """)), symbols)
-# print(symbols)
-
 run(toast(parser.parse("""
-z = x.filter()
+z = join {
+    xi ~ x
+    yi ~ y
+}.filter(zi => zi.xi.a > 1 and zi.xi.a < 2)
 """)), symbols)
 print(symbols)
 
