@@ -473,32 +473,31 @@ def listmethods_filter(object, arguments, symbols):
     return [x for x in object if f([Evaluated(x)], symbols)]
 listmethods["filter"] = listmethods_filter
 
-# class LorentzVector:
-#     def __init__(self, px, py, pz, E):
-#         self.px = px
-#         self.py = py
-#         self.pz = pz
-#         self.E = E
-#     def __repr__(self):
-#         return "LorentzVector({0:g}, {1:g}, {2:g}, {3:g})".format(self.px, self.py, self.pz, self.E)
-#     @property
-#     def pt(self):
-#         return math.sqrt(self.px**2 + self.py**2)
-#     @property
-#     def mass(self):
-#         try:
-#             return math.sqrt(self.E**2 - self.px**2 - self.py**2 - self.pz**2)
-#         except ValueError:
-#             return float("nan")
-#     def __add__(self, other):
-#         return LorentzVector(self.px + other.px, self.py + other.py, self.pz + other.pz, self.E + other.E)
+class LorentzVector(obj):
+    def __init__(self, id, px, py, pz, E):
+        super(LorentzVector, self).__init__(id)
+        self._fields = {"px": px, "py": py, "pz": pz, "E": E}
+    def __repr__(self):
+        return "LorentzVector({0}, {1:g}, {2:g}, {3:g}, {4:g})".format(self.id, self.px, self.py, self.pz, self.E)
+    @property
+    def pt(self):
+        return math.sqrt(self.px**2 + self.py**2)
+    @property
+    def mass(self):
+        try:
+            return math.sqrt(self.E**2 - self.px**2 - self.py**2 - self.pz**2)
+        except ValueError:
+            return float("nan")
+    def __add__(self, other):
+        return LorentzVector((self.id, other.id), self.px + other.px, self.py + other.py, self.pz + other.pz, self.E + other.E)
 
-# symbols = SymbolTable(builtins, {"x": LorentzVector(1, 2, 3, 4)})
-# run(toast(parser.parse("""
-# quad(x, y) = sqrt(x**2 + y**2)
-# q = quad(x.pz, x.E)
-# """), None), symbols)
-# print(symbols)
+class L(ID): pass
+symbols = SymbolTable(builtins, {"x": LorentzVector(L(0), 1, 2, 3, 4)})
+run(toast(parser.parse("""
+quad(x, y) = sqrt(x**2 + y**2)
+q = quad(x.pz, x.E)
+"""), None), symbols)
+print(symbols)
 
 class X(ID): pass
 class Y(ID): pass
@@ -506,83 +505,34 @@ symbols = SymbolTable(builtins, {"x": [obj(X(0), a=0.0), obj(X(1), a=1.1), obj(X
                                  "y": [obj(Y(0), b="one"), obj(Y(1), b="two")]})
 run(toast(parser.parse("""
 z = join {
-    xi !~ x
-    yi !~ x
+    xi ~ x
+    yi ~ y
 }
 """)), symbols)
 print(symbols)
 
-# print(toast(parser.parse("""
-# higgs =
-#     join {
-#         z1 ~ {
-#             mu1 ~ muons
-#             mu2 ~ muons
-#             p4 = mu1.p4 + mu2.p4
-#         }
-#         z2 ~ {
-#             mu1 ~ muons
-#             mu2 ~ muons
-#             p4 = mu1.p4 + mu2.p4
-#         }
-#         p4 = z1.p4 + z2.p4
-#     }
-# """)))
+events = uproot.open("http://scikit-hep.org/uproot/examples/HZZ.root")["events"]
+Electron_Px, Electron_Py, Electron_Pz, Electron_E, Electron_Charge = events.arrays(["Electron_Px", "Electron_Py", "Electron_Pz", "Electron_E", "Electron_Charge"], outputtype=tuple, entrystop=5)
+Muon_Px, Muon_Py, Muon_Pz, Muon_E, Muon_Charge = events.arrays(["Muon_Px", "Muon_Py", "Muon_Pz", "Muon_E", "Muon_Charge"], outputtype=tuple, entrystop=5)
 
-# print(toast(parser.parse("""
-# genreco = join {
-#     gen ~ generator
-#     reco = join reconstructed
-# }
-# """)))
-
-# symbols = SymbolTable(builtins, {"generator": [1, 2, 3], "reconstructed": [1.1, 3.3]})
-# run(toast(parser.parse("""
-# diff(x, y) = abs(x - y)
-# genreco = match {
-#     if diff(gen, reco) < 0.5
-#     for gen in generator, reco in reconstructed
-# }
-# """)), symbols)
-# print(symbols)
-
-# events = uproot.open("http://scikit-hep.org/uproot/examples/HZZ.root")["events"]
-# Electron_Px, Electron_Py, Electron_Pz, Electron_E, Electron_Charge = events.arrays(["Electron_Px", "Electron_Py", "Electron_Pz", "Electron_E", "Electron_Charge"], outputtype=tuple, entrystop=5)
-# Muon_Px, Muon_Py, Muon_Pz, Muon_E, Muon_Charge = events.arrays(["Muon_Px", "Muon_Py", "Muon_Pz", "Muon_E", "Muon_Charge"], outputtype=tuple, entrystop=5)
-# Particle = collections.namedtuple("Particle", ["px", "py", "pz", "E", "charge"])
-
-# engine = toast(parser.parse("""
-# mass(particle) = sqrt(particle.E**2 - particle.px**2 - particle.py**2 - particle.pz**2)
-
-# same_flavor(collection) = match {
-#     z1 = lep1 + lep2
-#     z2 = lep3 + lep4
-#     hmass = mass(z1 + z2)
-#     if lep1.charge != lep2.charge
-#     if lep3.charge != lep4.charge
-#     sort (mass(z1) - 91)**2 + (mass(z2) - 91)**2
-#     for lep1, lep2, lep3, lep4 in collection
-# }
-
-# higgs4e = same_flavor(electrons)
-# higgs4mu = same_flavor(muons)
-
-# higgs2e2mu = match {
-#     z1 = lep1 + lep2
-#     z2 = lep3 + lep4
-#     hmass = mass(z1 + z2)
-#     if lep1.charge != lep2.charge
-#     if lep3.charge != lep4.charge
-#     for lep1, lep2 in electrons, lep3, lep4 in muons
-# }
-# """))
-
-# for i in range(len(Muon_Px)):
-#     symbols = SymbolTable(builtins, {
-#         "electrons": [Particle(Electron_Px[i][j], Electron_Py[i][j], Electron_Pz[i][j], Electron_E[i][j], Electron_Charge[i][j]) for j in range(len(Electron_Px[i]))],
-#         "muons": [Particle(Muon_Px[i][j], Muon_Py[i][j], Muon_Pz[i][j], Muon_E[i][j], Muon_Charge[i][j]) for j in range(len(Muon_Px[i]))]
-#         })
-#     run(engine, symbols)
-#     del symbols["electrons"]
-#     del symbols["muons"]
-#     print(symbols)
+class E(ID): pass
+class M(ID): pass
+for i in range(len(Muon_Px)):
+    symbols = SymbolTable(builtins, {
+        "electrons": [obj(E(j), p4=LorentzVector(E(j), Electron_Px[i][j], Electron_Py[i][j], Electron_Pz[i][j], Electron_E[i][j]), charge=Electron_Charge[i][j]) for j in range(len(Electron_Px[i]))],
+        "muons": [obj(M(j), p4=LorentzVector(M(j), Muon_Px[i][j], Muon_Py[i][j], Muon_Pz[i][j], Muon_E[i][j]), charge=Muon_Charge[i][j]) for j in range(len(Muon_Px[i]))],
+        })
+run(toast(parser.parse("""
+higgs =
+    join {
+        z1 ~ {
+            mu1 ~ muons
+            mu2 ~ muons
+        }
+        z2 ~ {
+            mu1 ~ muons
+            mu2 ~ muons
+        }
+    }
+""")), symbols)
+print(symbols)
