@@ -167,7 +167,7 @@ def toast(node, matching=None):
     elif node.data == "symmetric" or node.data == "allsymmetric" or node.data == "asymmetric" or node.data == "allasymmetric":
         if matching is None:
             raise SyntaxError("cannot use {0} operator outside of a join".format(opname[node.data]))
-        return Assignment(str(node.children[0]), opname[node.data], matching.replace(node.children[1]), line=node.children[0].line)
+        return Assignment(str(node.children[0]), opname[node.data], matching.replace(node.children[1], node.data == "symmetric" or node.data == "asymmetric"), line=node.children[0].line)
     elif node.data == "pattern":
         return Pattern([toast(x, matching) for x in node.children if not isinstance(x, lark.lexer.Token)], matching)
     elif node.data == "join":
@@ -309,20 +309,26 @@ class Matching:
 
     def __init__(self):
         self.collections = []
+        self.unique = []
         self.Skip = type("Skip", (Exception,), {})
 
     def __repr__(self):
         return "<Matching at 0x{0:012x}>".format(id(self))
 
-    def replace(self, node):
+    def replace(self, node, unique):
         self.collections.append(toast(node, self))
+        self.unique.append(unique)
         return self.Placeholder(self, len(self.collections) - 1)
 
     def run(self, node, symbols):
         evaluated = [run(x, symbols) for x in self.collections]
-        for i, row in enumerate(itertools.product(*evaluated)):
-            self.i, self.row = i, row
-            yield run(node, symbols)
+        for row in itertools.product(*evaluated):
+            for i, unique in enumerate(self.unique):
+                if unique and row[i]._id in [row[j]._id for j in range(len(row)) if i != j]:
+                    break
+            else:
+                self.row = row
+                yield run(node, symbols)
 
 class Method:
     def __init__(self, object, function):
@@ -500,8 +506,8 @@ symbols = SymbolTable(builtins, {"x": [obj(X(0), a=0.0), obj(X(1), a=1.1), obj(X
                                  "y": [obj(Y(0), b="one"), obj(Y(1), b="two")]})
 run(toast(parser.parse("""
 z = join {
-    xi ~ y
-    yi ~ y
+    xi !~ x
+    yi !~ x
 }
 """)), symbols)
 print(symbols)
